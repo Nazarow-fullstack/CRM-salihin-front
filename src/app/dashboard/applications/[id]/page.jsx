@@ -276,30 +276,30 @@ export default function ApplicationDetailPage() {
                                     </div>
                                     <div className="space-y-2">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Phone Number</span>
-                                        <p className="text-white font-semibold text-lg flex items-center gap-2">
+                                        <div className="text-white font-semibold text-lg flex items-center gap-2">
                                             <div className="p-1.5 bg-emerald-500/10 rounded-lg">
                                                 <Phone className="w-3.5 h-3.5 text-emerald-400" />
                                             </div>
                                             {form.phone_number}
-                                        </p>
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Region</span>
-                                        <p className="text-white font-semibold flex items-center gap-2">
+                                        <div className="text-white font-semibold flex items-center gap-2">
                                             <div className="p-1.5 bg-purple-500/10 rounded-lg">
                                                 <MapPin className="w-3.5 h-3.5 text-purple-400" />
                                             </div>
                                             {form.address_region}
-                                        </p>
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Date Submitted</span>
-                                        <p className="text-white font-semibold flex items-center gap-2">
+                                        <div className="text-white font-semibold flex items-center gap-2">
                                             <div className="p-1.5 bg-orange-500/10 rounded-lg">
                                                 <Calendar className="w-3.5 h-3.5 text-orange-400" />
                                             </div>
                                             {new Date(form.created_at).toLocaleDateString()}
-                                        </p>
+                                        </div>
                                     </div>
                                     <div className="md:col-span-2 space-y-2">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Detailed Address</span>
