@@ -2,7 +2,7 @@ import axios from "axios";
 import useAuthStore from "@/store/useAuthStore";
 
 const api = axios.create({
-    baseURL: "http://khatbar.tj/api",
+    baseURL: "https://khatbar.tj/api",
     headers: {
         "Content-Type": "application/json",
     },

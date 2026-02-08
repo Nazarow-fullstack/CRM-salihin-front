@@ -288,7 +288,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                     <input
                                         type="text"
                                         placeholder="Name of Person"
-                                        value={phone.name_of_person}
+                                        value={phone.name_of_person || ''}
                                         onChange={(e) => {
                                             const updated = [...familyPhones];
                                             updated[idx].name_of_person = e.target.value;
@@ -299,7 +299,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                     <input
                                         type="text"
                                         placeholder="Phone Number"
-                                        value={phone.phone_number}
+                                        value={phone.phone_number || ''}
                                         onChange={(e) => {
                                             const updated = [...familyPhones];
                                             updated[idx].phone_number = e.target.value;
