@@ -217,63 +217,81 @@ export default function UserActivityPage() {
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+                    className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900 p-6 md:p-8"
                 >
-                    <div>
-                        <h1 className="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
-                            <Activity className="w-8 h-8 text-blue-500" />
-                            Фаъолияти корбарон
-                        </h1>
-                        <p className="text-slate-400 mt-1">Омори амалиётҳои корбарон дар система</p>
-                    </div>
+                    {/* Animated Background Elements */}
+                    <div className="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-                    {isSuperuser && (
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            {/* Period Filter */}
-                            <div className="flex gap-2 p-1 bg-slate-900 border border-white/10 rounded-xl">
-                                {PERIOD_OPTIONS.map((opt) => {
-                                    const Icon = opt.icon;
-                                    return (
-                                        <button
-                                            key={opt.value}
-                                            onClick={() => setPeriod(opt.value)}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${period === opt.value
-                                                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                                                : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                                }`}
-                                        >
-                                            <Icon className="w-4 h-4" />
-                                            <span className="hidden sm:inline">{opt.label}</span>
-                                        </button>
-                                    );
-                                })}
+                    <div className="relative space-y-6">
+                        {/* Title Section */}
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg shadow-blue-500/20">
+                                <Activity className="w-6 h-6 text-white" />
                             </div>
-
-                            {/* View Mode Toggle */}
-                            <div className="flex gap-2 p-1 bg-slate-900 border border-white/10 rounded-xl">
-                                <button
-                                    onClick={() => setViewMode('list')}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${viewMode === 'list'
-                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                        }`}
-                                >
-                                    <List className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Рӯйхат</span>
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('chart')}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${viewMode === 'chart'
-                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                        }`}
-                                >
-                                    <BarChart3 className="w-4 h-4" />
-                                    <span className="hidden sm:inline">График</span>
-                                </button>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-cyan-200 bg-clip-text text-transparent">
+                                    Фаъолияти корбарон
+                                </h1>
+                                <p className="text-slate-400 text-sm md:text-base mt-1">Омори амалиётҳои корбарон дар система</p>
                             </div>
                         </div>
-                    )}
+
+                        {/* Filters Section */}
+                        {isSuperuser && (
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                {/* Period Filter */}
+                                <div className="flex-1 sm:flex-initial">
+                                    <p className="text-xs text-slate-500 mb-2 font-medium uppercase">Муддат</p>
+                                    <div className="grid grid-cols-4 gap-2 p-1 bg-slate-800/50 border border-white/5 rounded-xl">
+                                        {PERIOD_OPTIONS.map((opt) => {
+                                            const Icon = opt.icon;
+                                            return (
+                                                <button
+                                                    key={opt.value}
+                                                    onClick={() => setPeriod(opt.value)}
+                                                    className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg font-medium transition-all ${period === opt.value
+                                                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                                                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                                        }`}
+                                                >
+                                                    <Icon className="w-4 h-4" />
+                                                    <span className="text-xs sm:text-sm">{opt.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* View Mode Toggle */}
+                                <div className="flex-1 sm:flex-initial">
+                                    <p className="text-xs text-slate-500 mb-2 font-medium uppercase">Намоиш</p>
+                                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-800/50 border border-white/5 rounded-xl">
+                                        <button
+                                            onClick={() => setViewMode('list')}
+                                            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${viewMode === 'list'
+                                                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            <List className="w-4 h-4" />
+                                            <span className="text-sm">Рӯйхат</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('chart')}
+                                            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-medium transition-all ${viewMode === 'chart'
+                                                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            <BarChart3 className="w-4 h-4" />
+                                            <span className="text-sm">График</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </motion.div>
 
                 {/* Summary Stats */}

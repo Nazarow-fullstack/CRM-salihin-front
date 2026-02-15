@@ -229,21 +229,37 @@ export default function UsersPage() {
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                    className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br bg-slate-900  p-6 md:p-8"
                 >
-                    <div>
-                        <h1 className="text-3xl font-bold text-white">Истифодабарандагон</h1>
-                        <p className="text-slate-400">Системаи идоракунии корбарон</p>
+                    {/* Animated Background Elements */}
+                    <div className="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+                    <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg shadow-blue-500/20">
+                                    <Users className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-cyan-200 bg-clip-text text-transparent">
+                                        Истифодабарандагон
+                                    </h1>
+                                    <p className="text-slate-400 text-sm md:text-base mt-1">Системаи идоракунии корбарон</p>
+                                </div>
+                            </div>
+                        </div>
+                        {isAdmin && (
+                            <button
+                                onClick={() => handleOpenUserModal(null)}
+                                className="group relative flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white font-semibold rounded-xl overflow-hidden shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 transition-all active:scale-95"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <UserPlus className="w-5 h-5 relative z-10" />
+                                <span className="relative z-10">Корбари нав</span>
+                            </button>
+                        )}
                     </div>
-                    {isAdmin && (
-                        <button
-                            onClick={() => handleOpenUserModal(null)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-emerald-500/20 transition-all active:scale-95"
-                        >
-                            <UserPlus className="w-5 h-5" />
-                            Корбари нав
-                        </button>
-                    )}
                 </motion.div>
 
                 {/* Error Alert */}
