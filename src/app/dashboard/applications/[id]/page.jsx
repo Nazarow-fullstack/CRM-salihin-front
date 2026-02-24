@@ -116,6 +116,11 @@ export default function ApplicationDetailPage() {
     const [isEditFormOpen, setIsEditFormOpen] = useState(false);
     const [isEditPollOpen, setIsEditPollOpen] = useState(false);
 
+    // To Accountant: ask amount when under_review → to_accountant
+    const [amountModalOpen, setAmountModalOpen] = useState(false);
+    const [amountForAccountant, setAmountForAccountant] = useState('');
+    const [amountSubmitting, setAmountSubmitting] = useState(false);
+
     // Fetch Data
     const fetchData = useCallback(async () => {
         try {
@@ -153,6 +158,40 @@ export default function ApplicationDetailPage() {
         } catch (err) {
             console.error(err);
             alert('Failed to update status');
+        }
+    };
+
+    // When user selects to_accountant from dropdown: if currently under_review, show amount modal first
+    const handleStatusSelect = (newStatus) => {
+        if (newStatus === 'to_accountant' && form?.status === 'under_review') {
+            setAmountForAccountant(form.aidmounts?.[0]?.amount?.toString() || '');
+            setAmountModalOpen(true);
+            return;
+        }
+        handleStatusChange(newStatus);
+    };
+
+    const handleConfirmAmountToAccountant = async () => {
+        const amount = parseFloat(amountForAccountant);
+        if (!amountModalOpen || isNaN(amount) || amount <= 0) {
+            alert('Маблағи кӯмакро дохил кунед');
+            return;
+        }
+        setAmountSubmitting(true);
+        try {
+            await api.patch(`/forms/${id}/`, {
+                status: 'to_accountant',
+                approved_amount: amount,
+                aidmounts: [{ amount }]
+            });
+            setAmountModalOpen(false);
+            setAmountForAccountant('');
+            fetchData();
+        } catch (err) {
+            console.error(err);
+            alert('Хатогӣ: вазъият ва маблағ сабт нашуд');
+        } finally {
+            setAmountSubmitting(false);
         }
     };
 
@@ -218,12 +257,22 @@ export default function ApplicationDetailPage() {
                                 </button>
                                 <div>
                                     <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
-                                        Application Details
+                                    Маълумоти оила
                                     </h1>
                                     <p className="text-sm text-slate-400 mt-1">ID: <span className="text-blue-400 font-mono">#{form.id}</span></p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                {form.status === 'submitted' && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditPollOpen(true)}
+                                        className="px-4 py-2.5 rounded-xl text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white border border-blue-400/30 shadow-lg transition-all flex items-center gap-2"
+                                    >
+                                        <FileText className="w-4 h-4" />
+                                        Анкетро пур кунед
+                                    </button>
+                                )}
                                 <span className={cn(
                                     "px-4 py-2 rounded-xl text-xs font-semibold uppercase border shadow-lg",
                                     STATUS_COLORS[form.status] || "text-gray-400 border-gray-400/20"
@@ -233,10 +282,10 @@ export default function ApplicationDetailPage() {
                                 {allowedStatuses.length > 0 && (
                                     <select
                                         className="bg-slate-800 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all shadow-lg"
-                                        onChange={(e) => handleStatusChange(e.target.value)}
+                                        onChange={(e) => handleStatusSelect(e.target.value)}
                                         value=""
                                     >
-                                        <option value="" disabled>Change Status...</option>
+                                        <option value="" disabled>Тағйири вазъият..</option>
                                         {allowedStatuses.map(status => (
                                             <option key={status} value={status}>
                                                 {STATUS_LABELS[status]}
@@ -261,21 +310,18 @@ export default function ApplicationDetailPage() {
                                     <div className="p-2 bg-blue-500/10 rounded-xl">
                                         <User className="w-5 h-5 text-blue-400" />
                                     </div>
-                                    <h2 className="text-lg font-semibold text-white">Applicant Information</h2>
+                                    <h2 className="text-lg font-semibold text-white">{form.full_name}</h2>
                                 </div>
                                 <button
                                     onClick={() => setIsEditFormOpen(true)}
                                     className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 px-3 py-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 transition-all hover:bg-blue-500/20"
                                 >
-                                    <Edit className="w-3 h-3" /> Edit
+                                    <Edit className="w-3 h-3" /> ислоҳ
                                 </button>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    
                                     <div className="space-y-2">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Full Name</span>
-                                        <p className="text-white font-semibold text-lg">{form.full_name}</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Phone Number</span>
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Рақами телефонr</span>
                                         <div className="text-white font-semibold text-lg flex items-center gap-2">
                                             <div className="p-1.5 bg-emerald-500/10 rounded-lg">
                                                 <Phone className="w-3.5 h-3.5 text-emerald-400" />
@@ -284,7 +330,7 @@ export default function ApplicationDetailPage() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Region</span>
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Минтақа</span>
                                         <div className="text-white font-semibold flex items-center gap-2">
                                             <div className="p-1.5 bg-purple-500/10 rounded-lg">
                                                 <MapPin className="w-3.5 h-3.5 text-purple-400" />
@@ -293,7 +339,7 @@ export default function ApplicationDetailPage() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Date Submitted</span>
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Санаи воридшуда</span>
                                         <div className="text-white font-semibold flex items-center gap-2">
                                             <div className="p-1.5 bg-orange-500/10 rounded-lg">
                                                 <Calendar className="w-3.5 h-3.5 text-orange-400" />
@@ -302,7 +348,7 @@ export default function ApplicationDetailPage() {
                                         </div>
                                     </div>
                                     <div className="md:col-span-2 space-y-2">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Detailed Address</span>
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Суроға</span>
                                         <p className="text-slate-300 bg-white/5 p-3 rounded-xl border border-white/5">{form.detailed_address || '—'}</p>
                                     </div>
                                 </div>
@@ -315,16 +361,16 @@ export default function ApplicationDetailPage() {
                                 <div className="p-2 bg-purple-500/10 rounded-xl">
                                     <FileText className="w-5 h-5 text-purple-400" />
                                 </div>
-                                <h2 className="text-lg font-semibold text-white">Application Content</h2>
+                                <h2 className="text-lg font-semibold text-white">Мақсади ариза</h2>
                             </div>
 
-                            {form.aidmounts?.[0]?.amount && (
+                            {(parseFloat(form.aidmounts?.[0]?.amount) > 0 || parseFloat(form.approved_amount) > 0) && (
                                 <div className="mb-6 relative overflow-hidden">
                                     <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 blur-2xl" />
                                     <div className="relative bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-teal-500/10 border border-emerald-500/30 rounded-2xl p-6 text-center shadow-lg">
-                                        <span className="text-xs text-emerald-300 uppercase tracking-wider font-bold">Requested Amount</span>
+                                        <span className="text-xs text-emerald-300 uppercase tracking-wider font-bold">Маблағи дархостшуда</span>
                                         <p className="text-4xl md:text-5xl font-black bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mt-2">
-                                            {form.aidmounts[0].amount} <span className="text-2xl">TJS</span>
+                                            {parseFloat(form.aidmounts?.[0]?.amount || form.approved_amount || 0)} <span className="text-2xl">TJS</span>
                                         </p>
                                     </div>
                                 </div>
@@ -332,11 +378,10 @@ export default function ApplicationDetailPage() {
 
                             <div className="space-y-5">
                                 <div>
-                                    <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Purpose</span>
-                                    <p className="text-white mt-2 text-lg font-medium">{form.application_purpose}</p>
+                                    <p className="text-white mt-2 text-lg font-medium">{form.application_purpose || '—'}</p>
                                 </div>
                                 <div>
-                                    <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Description</span>
+                                    <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Матни ариза</span>
                                     <div className="mt-2 p-5 bg-slate-950/50 rounded-xl border border-white/10 text-slate-300 leading-relaxed whitespace-pre-wrap shadow-inner">
                                         {form.description}
                                     </div>
@@ -352,7 +397,7 @@ export default function ApplicationDetailPage() {
                                         <div className="p-2 bg-purple-500/10 rounded-xl">
                                             <Briefcase className="w-5 h-5 text-purple-400" />
                                         </div>
-                                        <h2 className="text-lg font-semibold text-white">Survey Data (Anketa)</h2>
+                                        <h2 className="text-lg font-semibold text-white">Маълумоти анкета</h2>
                                     </div>
                                     <button
                                         onClick={() => setIsEditPollOpen(true)}
@@ -364,26 +409,37 @@ export default function ApplicationDetailPage() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
                                     <div className="p-4 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-xl border border-white/5">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Family Members</span>
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Аъзои оила</span>
                                         <p className="text-white font-bold text-2xl mt-2 flex items-center gap-2">
                                             <Users className="w-5 h-5 text-blue-400" />
                                             {poll.family_members}
                                         </p>
                                     </div>
                                     <div className="p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-xl border border-white/5">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Monthly Income</span>
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Санаи таваллуд</span>
+                                        <p className="text-white font-bold text-2xl mt-2 flex items-center gap-2">
+                                            <Calendar className="w-5 h-5 text-emerald-400" />
+                                            {poll.data_of_birth}
+                                        </p>
+                                    </div>
+                                    <div className="p-4 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-xl border border-white/5">
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Маъоши моҳона</span>
                                         <p className="text-white font-bold text-2xl mt-2 flex items-center gap-2">
                                             <DollarSign className="w-5 h-5 text-emerald-400" />
                                             {poll.monthly_income} <span className="text-lg text-slate-400">TJS</span>
                                         </p>
                                     </div>
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Job / Profession</span>
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Кор / Касб</span>
                                         <p className="text-white font-semibold mt-2">{poll.profession_jobs}</p>
                                     </div>
-                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Reason for Help</span>
+                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 md:col-span-2">
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Мақсади кӯмак</span>
                                         <p className="text-white font-semibold mt-2">{poll.yarim_reason}</p>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 md:col-span-2">
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Вазъи молиявӣ</span>
+                                        <p className="text-white font-semibold mt-2">{poll.financial_status}</p>
                                     </div>
                                 </div>
 
@@ -454,7 +510,7 @@ export default function ApplicationDetailPage() {
                                 <div className="p-2 bg-blue-500/10 rounded-xl">
                                     <Clock className="w-5 h-5 text-blue-400" />
                                 </div>
-                                <h2 className="text-lg font-semibold text-white">Activity & Notes</h2>
+                                <h2 className="text-lg font-semibold text-white">Шарҳ мондан</h2>
                             </div>
 
                             <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#475569 transparent' }}>
@@ -512,7 +568,7 @@ export default function ApplicationDetailPage() {
                         {/* Document Upload Section - Enhanced */}
                         <div className="relative bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-xl">
                             <h2 className="text-sm font-bold text-slate-400 mb-4 uppercase tracking-wider">
-                                Upload Documents
+                             Ҳуҷҷатҳо
                             </h2>
                             <div className="space-y-3">
                                 <label className="block">
@@ -539,7 +595,7 @@ export default function ApplicationDetailPage() {
                                     />
                                     <div className="flex items-center justify-center gap-3 px-5 py-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 hover:from-blue-500/20 hover:to-cyan-500/20 border border-blue-500/30 rounded-xl cursor-pointer transition-all group shadow-lg hover:shadow-xl hover:scale-105">
                                         <FileText className="w-5 h-5 text-blue-400 group-hover:scale-110 transition-transform" />
-                                        <span className="text-sm text-blue-400 font-semibold">Passport Photos</span>
+                                        <span className="text-sm text-blue-400 font-semibold">Паспорт</span>
                                     </div>
                                 </label>
 
@@ -567,7 +623,7 @@ export default function ApplicationDetailPage() {
                                     />
                                     <div className="flex items-center justify-center gap-3 px-5 py-4 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 border border-emerald-500/30 rounded-xl cursor-pointer transition-all group shadow-lg hover:shadow-xl hover:scale-105">
                                         <FileText className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
-                                        <span className="text-sm text-emerald-400 font-semibold">Other Documents</span>
+                                        <span className="text-sm text-emerald-400 font-semibold">Дигар ҳуҷҷатҳо</span>
                                     </div>
                                 </label>
                             </div>
@@ -577,7 +633,7 @@ export default function ApplicationDetailPage() {
                         {relatedForms.length > 0 && (
                             <div className="relative bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-xl">
                                 <h2 className="text-sm font-bold text-slate-400 mb-4 uppercase tracking-wider">
-                                    Related Applications ({relatedForms.length})
+                                    Муроҷиатҳо ({relatedForms.length})
                                 </h2>
                                 <div className="space-y-3">
                                     {relatedForms.map(rForm => (
@@ -594,6 +650,7 @@ export default function ApplicationDetailPage() {
                                                     <p className="text-xs text-slate-500 mt-1 font-medium">
                                                         ID: <span className="text-blue-400">#{rForm.id}</span> • {new Date(rForm.created_at).toLocaleDateString()}
                                                     </p>
+                                                    <p className="text-xs text-slate-400 mt-1">статус: {STATUS_LABELS[rForm.status] || rForm.status}</p>
                                                 </div>
                                                 <span className={cn(
                                                     "w-3 h-3 rounded-full shadow-lg",
@@ -609,6 +666,57 @@ export default function ApplicationDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal: Yardım miktarı (under_review → to_accountant) */}
+            {amountModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-white/10 overflow-hidden">
+                        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-white">Маблағи кӯмак</h3>
+                            <button
+                                type="button"
+                                onClick={() => { setAmountModalOpen(false); setAmountForAccountant(''); }}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5 text-white" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-400">Вазъият ба «Бухгалтерия» иваз мешавад. Маблағи кӯмакро (сомонӣ) дохил кунед:</p>
+                            <div>
+                                <label className="block text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Маблағ (сомонӣ)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={amountForAccountant}
+                                    onChange={(e) => setAmountForAccountant(e.target.value)}
+                                    placeholder="0"
+                                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                />
+                            </div>
+                        </div>
+                        <div className="p-6 pt-0 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => { setAmountModalOpen(false); setAmountForAccountant(''); }}
+                                className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-all"
+                            >
+                                Бекор кардан
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmAmountToAccountant}
+                                disabled={amountSubmitting || !amountForAccountant.trim()}
+                                className="flex-1 px-4 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 rounded-xl text-white font-semibold transition-all flex items-center justify-center gap-2"
+                            >
+                                {amountSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                                Сабт кардан
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Edit Dialogs */}
             <EditFormDialog

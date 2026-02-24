@@ -85,7 +85,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
             <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/10">
                 {/* Header */}
                 <div className="sticky top-0 bg-slate-900 border-b border-white/10 p-6 flex items-center justify-between z-10">
-                    <h2 className="text-2xl font-bold text-white">Edit Survey Data</h2>
+                    <h2 className="text-2xl font-bold text-white">Таҳрири анкета</h2>
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -105,7 +105,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-2">
-                                Family Members
+                                Шумораи аъзоёни оила
                             </label>
                             <input
                                 type="number"
@@ -118,7 +118,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-2">
-                                Monthly Income
+                                Маъоши моҳона
                             </label>
                             <input
                                 type="number"
@@ -131,7 +131,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-2">
-                                Date of Birth
+                                Санаи таваллуд
                             </label>
                             <input
                                 type="date"
@@ -144,7 +144,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-2">
-                                Profession/Job
+                                Кор / Касб
                             </label>
                             <input
                                 type="text"
@@ -158,7 +158,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
                     <div>
                         <label className="block text-sm font-medium text-slate-400 mb-2">
-                            Financial Status
+                            Вазъи оилавӣ
                         </label>
                         <textarea
                             name="financial_status"
@@ -171,22 +171,29 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
                     <div>
                         <label className="block text-sm font-medium text-slate-400 mb-2">
-                            Reason for Help
+                            Мақсади кӯмак (Сабаби кӯмак)
                         </label>
-                        <input
-                            type="text"
+                        <select
                             name="yarim_reason"
                             value={formData.yarim_reason}
                             onChange={handleChange}
                             className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                        />
+                        >
+                            <option value="" disabled>Интихоб кунед</option>
+                            <option value="Табобат" className="bg-slate-800 text-white">Табобат</option>
+                            <option value="Таҳсилот" className="bg-slate-800 text-white">Таҳсилот</option>
+                            <option value="Хӯрок" className="bg-slate-800 text-white">Хӯрок</option>
+                            <option value="Таъмири хона" className="bg-slate-800 text-white">Таъмири хона</option>
+                            <option value="Дастгирии тиҷорат" className="bg-slate-800 text-white">Дастгирии тиҷорат</option>
+                            <option value="Ниёзи аввали" className="bg-slate-800 text-white">Ниёзи аввали</option>
+                        </select>
                     </div>
 
                     {/* Family Workers */}
                     <div>
                         <div className="flex items-center justify-between mb-3">
                             <label className="text-sm font-medium text-slate-400">
-                                Family Workers
+                                Аъзои оила, ки кор мекунанд
                             </label>
                             <button
                                 type="button"
@@ -199,7 +206,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                         {familyWorkers.map((worker, idx) => (
                             <div key={idx} className="bg-slate-800/50 border border-white/10 rounded-xl p-4 mb-3">
                                 <div className="flex justify-between items-center mb-3">
-                                    <span className="text-sm font-medium text-white">Worker #{idx + 1}</span>
+                                    <span className="text-sm font-medium text-white">Аъзои оила #{idx + 1}</span>
                                     <button
                                         type="button"
                                         onClick={() => setFamilyWorkers(familyWorkers.filter((_, i) => i !== idx))}
@@ -211,7 +218,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                 <div className="grid grid-cols-2 gap-3">
                                     <input
                                         type="text"
-                                        placeholder="Person"
+                                        placeholder="Аъзо"
                                         value={worker.person}
                                         onChange={(e) => {
                                             const updated = [...familyWorkers];
@@ -222,7 +229,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                     />
                                     <input
                                         type="text"
-                                        placeholder="Name"
+                                        placeholder="Номи аъзо"
                                         value={worker.name}
                                         onChange={(e) => {
                                             const updated = [...familyWorkers];
@@ -233,7 +240,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                     />
                                     <input
                                         type="text"
-                                        placeholder="Job"
+                                        placeholder="Кор / Касб"
                                         value={worker.job}
                                         onChange={(e) => {
                                             const updated = [...familyWorkers];
@@ -243,8 +250,19 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                         className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                     />
                                     <input
+                                        type="date"
+                                        placeholder="Санаи таваллуд"
+                                        value={worker.data_of_birth}
+                                        onChange={(e) => {
+                                            const updated = [...familyWorkers];
+                                            updated[idx].data_of_birth = e.target.value;
+                                            setFamilyWorkers(updated);
+                                        }}
+                                        className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                    />
+                                    <input
                                         type="number"
-                                        placeholder="Monthly Income"
+                                        placeholder="Маъоши моҳона"
                                         value={worker.monthly_income}
                                         onChange={(e) => {
                                             const updated = [...familyWorkers];
@@ -262,7 +280,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                     <div>
                         <div className="flex items-center justify-between mb-3">
                             <label className="text-sm font-medium text-slate-400">
-                                Family Phone Numbers
+                                Рақамҳои телефони оила
                             </label>
                             <button
                                 type="button"
@@ -275,7 +293,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                         {familyPhones.map((phone, idx) => (
                             <div key={idx} className="bg-slate-800/50 border border-white/10 rounded-xl p-4 mb-3">
                                 <div className="flex justify-between items-center mb-3">
-                                    <span className="text-sm font-medium text-white">Phone #{idx + 1}</span>
+                                    <span className="text-sm font-medium text-white">Рақами телефони #{idx + 1}</span>
                                     <button
                                         type="button"
                                         onClick={() => setFamilyPhones(familyPhones.filter((_, i) => i !== idx))}
@@ -287,7 +305,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                 <div className="grid grid-cols-2 gap-3">
                                     <input
                                         type="text"
-                                        placeholder="Name of Person"
+                                        placeholder="Номи аъзо"
                                         value={phone.name_of_person || ''}
                                         onChange={(e) => {
                                             const updated = [...familyPhones];
@@ -298,7 +316,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                     />
                                     <input
                                         type="text"
-                                        placeholder="Phone Number"
+                                        placeholder="Рақами телефон"
                                         value={phone.phone_number || ''}
                                         onChange={(e) => {
                                             const updated = [...familyPhones];

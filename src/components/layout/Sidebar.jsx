@@ -20,14 +20,14 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Applications', href: '/dashboard/applications', icon: Grid },
-    { name: 'Families', href: '/dashboard/families', icon: Users },
-    { name: 'Committee', href: '/dashboard/committee', icon: Users },
-    { name: 'Accounting', href: '/dashboard/accounting', icon: CreditCard },
-    { name: 'Programs', href: '/dashboard/', icon: ClipboardList },
-    { name: 'Users', href: '/dashboard/users', icon: Settings },
-    { name: 'Activity', href: '/dashboard/user-activity', icon: Building },
+    { name: 'Аналитика', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Дархостҳо', href: '/dashboard/applications', icon: Grid },
+    { name: 'Оилаҳо', href: '/dashboard/families', icon: Users },
+    { name: 'Кумита', href: '/dashboard/committee', icon: Users },
+    { name: 'Бухгалтерия', href: '/dashboard/accounting', icon: CreditCard },
+    { name: 'Барномахо', href: '/dashboard/', icon: ClipboardList },
+    { name: 'Корбар', href: '/dashboard/users', icon: Settings },
+    { name: 'Фаъолияти корбарон', href: '/dashboard/user-activity', icon: Building },
 ];
 
 export default function Sidebar({ isOpen = false, setIsOpen }) {

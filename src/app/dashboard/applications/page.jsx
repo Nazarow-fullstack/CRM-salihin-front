@@ -157,10 +157,10 @@ export default function ApplicationsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-black ">
-                        Applications
+                     Дархостҳо
                     </h1>
                     <p className="text-gray-900">
-                        Manage and track all form submissions.
+                     Дархостҳои кӯмак ва пешниҳодҳо
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -174,7 +174,7 @@ export default function ApplicationsPage() {
                         onClick={() => setIsModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-purple-500/20 transition-all hover:scale-[1.02]"
                     >
-                        <Plus className="w-4 h-4" /> New Application
+                        <Plus className="w-4 h-4" /> Дархости Нав
                     </button>
                 </div>
             </div>
@@ -185,7 +185,7 @@ export default function ApplicationsPage() {
                     <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Search name or phone..."
+                        placeholder="Ном ё телефонро ҷустуҷӯ кунед..."
                         className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -196,7 +196,7 @@ export default function ApplicationsPage() {
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                    <option value="all">All Status</option>
+                    <option value="all">Ҳама</option>
                     {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
                         <option key={key} value={key}>{conf.label}</option>
                     ))}
@@ -206,7 +206,7 @@ export default function ApplicationsPage() {
                     value={regionFilter}
                     onChange={(e) => setRegionFilter(e.target.value)}
                 >
-                    <option value="all">All Regions</option>
+                    <option value="all">Ҳамаи минтақаҳо</option>
                     {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
                 <select
@@ -214,7 +214,7 @@ export default function ApplicationsPage() {
                     value={purposeFilter}
                     onChange={(e) => setPurposeFilter(e.target.value)}
                 >
-                    <option value="all">All Purposes</option>
+                    <option value="all">Мақсади ариза</option>
                     {PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
             </div>
@@ -226,12 +226,12 @@ export default function ApplicationsPage() {
                         <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400">
                             <tr>
                                 <th className="px-6 py-4 font-semibold">ID</th>
-                                <th className="px-6 py-4 font-semibold">Applicant</th>
-                                <th className="px-6 py-4 font-semibold">Purpose</th>
-                                <th className="px-6 py-4 font-semibold">Region</th>
-                                <th className="px-6 py-4 font-semibold">Date</th>
-                                <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                                <th className="px-6 py-4 font-semibold">Ном ва насаб</th>
+                                <th className="px-6 py-4 font-semibold">Мақсади ариза</th>
+                                <th className="px-6 py-4 font-semibold">Минтақа</th>
+                                <th className="px-6 py-4 font-semibold">Санаи иловашуда</th>
+                                <th className="px-6 py-4 font-semibold">Статус</th>
+                                <th className="px-6 py-4 font-semibold text-right">Амал</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -244,7 +244,7 @@ export default function ApplicationsPage() {
                             ) : paginatedData.length === 0 ? (
                                 <tr>
                                     <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
-                                        No applications found matching your filters.
+                                     Приложения, соответствующие вашим фильтрам, не найдены.
                                     </td>
                                 </tr>
                             ) : (
@@ -324,7 +324,7 @@ export default function ApplicationsPage() {
                         >
                             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6">
                                 <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">New Application</h2>
+                                    <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Дархости Нав</h2>
                                     <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-500">
                                         <X className="w-5 h-5" />
                                     </button>
@@ -333,7 +333,7 @@ export default function ApplicationsPage() {
                                 <form onSubmit={handleCreateSubmit} className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-slate-500 uppercase">Full Name</label>
+                                            <label className="text-xs font-medium text-slate-500 uppercase">Ном ва насаб</label>
                                             <input
                                                 type="text"
                                                 required
@@ -343,7 +343,7 @@ export default function ApplicationsPage() {
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-slate-500 uppercase">Phone</label>
+                                            <label className="text-xs font-medium text-slate-500 uppercase">Рақами телефон</label>
                                             <input
                                                 type="text"
                                                 required
@@ -356,31 +356,31 @@ export default function ApplicationsPage() {
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-slate-500 uppercase">Purpose</label>
+                                            <label className="text-xs font-medium text-slate-500 uppercase">Мақсад ариза</label>
                                             <select
                                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                                 value={formData.application_purpose}
                                                 onChange={e => setFormData({ ...formData, application_purpose: e.target.value })}
                                             >
-                                                <option value="">Select Purpose</option>
+                                                <option value="">Интихоб кунед</option>
                                                 {PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
                                             </select>
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-slate-500 uppercase">Region</label>
+                                            <label className="text-xs font-medium text-slate-500 uppercase">Минтақа</label>
                                             <select
                                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                                 value={formData.address_region}
                                                 onChange={e => setFormData({ ...formData, address_region: e.target.value })}
                                             >
-                                                <option value="">Select Region</option>
+                                                <option value="">Интихоб кунед</option>
                                                 {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                                             </select>
                                         </div>
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">Detailed Address</label>
+                                        <label className="text-xs font-medium text-slate-500 uppercase">Суроғаи муфассал</label>
                                         <input
                                             type="text"
                                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
@@ -390,7 +390,7 @@ export default function ApplicationsPage() {
                                     </div>
 
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-slate-500 uppercase">Description</label>
+                                        <label className="text-xs font-medium text-slate-500 uppercase">Матни ариза</label>
                                         <textarea
                                             rows={3}
                                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-none"
@@ -404,7 +404,7 @@ export default function ApplicationsPage() {
                                         disabled={isSubmitting}
                                         className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center disabled:opacity-50"
                                     >
-                                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Save Application</>}
+                                        {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4 mr-2" />Илова кардан</>}
                                     </button>
                                 </form>
                             </div>
