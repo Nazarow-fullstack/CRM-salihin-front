@@ -12,6 +12,7 @@ import {
     Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as XLSX from 'xlsx';
 import api from '@/lib/axios';
 
 // --- CONFIGURATION ---
@@ -30,6 +31,14 @@ const STATUS_CONFIG = {
 
 const REGIONS = ['НТМ', 'ХАТЛОН', 'СУҒД', 'ВМКБ', 'БЕРУН АЗ ТҶК'];
 const PURPOSES = ['Пешниҳод дорам', 'Кӯмак лозим'];
+const YARIM_REASON_OPTIONS = [
+    { value: 'Табобат', label: 'Табобат' },
+    { value: 'Таҳсилот', label: 'Таҳсилот' },
+    { value: 'Хӯрок', label: 'Хӯрок' },
+    { value: 'Таъмири хона', label: 'Таъмири хона' },
+    { value: 'Дастгирии тиҷорат', label: 'Дастгирии тиҷорат' },
+    { value: 'Ниёзи аввали', label: 'Ниёзи аввали' },
+];
 const ITEMS_PER_PAGE = 10;
 
 export default function ApplicationsPage() {
@@ -42,6 +51,7 @@ export default function ApplicationsPage() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [regionFilter, setRegionFilter] = useState('all');
     const [purposeFilter, setPurposeFilter] = useState('all');
+    const [yarimReasonFilter, setYarimReasonFilter] = useState('all');
 
     // Pagination & Modal
     const [page, setPage] = useState(1);
@@ -75,33 +85,50 @@ export default function ApplicationsPage() {
         fetchData();
     }, []);
 
-    // 2. EXPORT LOGIC
+    // 2. EXPORT LOGIC (Excel - filtered data)
     const handleExport = () => {
-        if (forms.length === 0) return;
+        if (filteredData.length === 0) return;
 
-        // Create CSV content
-        const headers = ['ID', 'Full Name', 'Phone', 'Purpose', 'Region', 'Status', 'Date'];
-        const rows = forms.map(f => [
-            f.id,
-            `"${f.full_name}"`,
-            `"${f.phone_number}"`,
-            `"${f.application_purpose}"`,
-            f.address_region,
-            f.status,
-            new Date(f.created_at).toLocaleDateString()
+        const headers = [
+            'Фио',
+            'Номер телефон',
+            'Мақсади ариза',
+            'Санаи воридшуда',
+            'Минтақа',
+            'Суроға',
+            'Матни ариза',
+            'Статус (вазъият)',
+            'Аъзои оила',
+            'Санаи таваллуд',
+            'Ҷойи кор',
+            'Музди маош',
+            'Вазъи оилавӣ',
+            'Мақсади кумак',
+        ];
+        const poll = (f) => f.polls?.[0];
+        const rows = filteredData.map(f => [
+            f.full_name ?? '',
+            f.phone_number ?? '',
+            f.application_purpose ?? '',
+            f.created_at ? new Date(f.created_at).toLocaleDateString() : '',
+            f.address_region ?? '',
+            f.detailed_address ?? '',
+            f.description ?? '',
+            STATUS_CONFIG[f.status]?.label ?? f.status ?? '',
+            poll(f)?.family_members ?? '',
+            poll(f)?.data_of_birth ? new Date(poll(f).data_of_birth).toLocaleDateString() : '',
+            poll(f)?.profession_jobs ?? '',
+            poll(f)?.monthly_income ?? '',
+            poll(f)?.financial_status ?? '',
+            poll(f)?.yarim_reason ?? '',
         ]);
 
-        const csvContent = "data:text/csv;charset=utf-8,"
-            + headers.join(",") + "\n"
-            + rows.map(e => e.join(",")).join("\n");
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `applications_export_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const wsData = [headers, ...rows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Дархостҳо');
+        const fileName = `applications_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        XLSX.writeFile(wb, fileName);
     };
 
     // 3. CREATE APPLICATION LOGIC
@@ -137,10 +164,11 @@ export default function ApplicationsPage() {
             const statusMatch = statusFilter === 'all' || item.status === statusFilter;
             const regionMatch = regionFilter === 'all' || item.address_region === regionFilter;
             const purposeMatch = purposeFilter === 'all' || item.application_purpose === purposeFilter;
+            const yarimMatch = yarimReasonFilter === 'all' || item.polls?.[0]?.yarim_reason === yarimReasonFilter;
 
-            return (nameMatch || phoneMatch) && statusMatch && regionMatch && purposeMatch;
+            return (nameMatch || phoneMatch) && statusMatch && regionMatch && purposeMatch && yarimMatch;
         });
-    }, [forms, search, statusFilter, regionFilter, purposeFilter]);
+    }, [forms, search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter]);
 
     // 5. PAGINATION LOGIC
     const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
@@ -148,7 +176,7 @@ export default function ApplicationsPage() {
 
     useEffect(() => {
         setPage(1);
-    }, [search, statusFilter, regionFilter, purposeFilter]);
+    }, [search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter]);
 
     return (
         <div className="space-y-6">
@@ -180,7 +208,7 @@ export default function ApplicationsPage() {
             </div>
 
             {/* FILTERS BAR */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4  dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                     <input
@@ -196,7 +224,7 @@ export default function ApplicationsPage() {
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                    <option value="all">Ҳама</option>
+                    <option value="all">Ҳама (вазъият)</option>
                     {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
                         <option key={key} value={key}>{conf.label}</option>
                     ))}
@@ -216,6 +244,16 @@ export default function ApplicationsPage() {
                 >
                     <option value="all">Мақсади ариза</option>
                     {PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-slate-100"
+                    value={yarimReasonFilter}
+                    onChange={(e) => setYarimReasonFilter(e.target.value)}
+                >
+                    <option value="all">Мақсади кӯмак (ҳама)</option>
+                    {YARIM_REASON_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
                 </select>
             </div>
 
