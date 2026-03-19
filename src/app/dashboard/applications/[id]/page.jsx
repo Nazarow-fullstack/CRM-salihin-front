@@ -7,7 +7,8 @@ import {
     User, Phone, MapPin, Calendar, FileText,
     ArrowLeft, Edit, CreditCard, Check, X,
     Plus, Trash2, Clock, AlertCircle, Loader2,
-    Send, Briefcase, Users, DollarSign, Activity
+    Send, Briefcase, Users, DollarSign, Activity,
+    ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -120,6 +121,24 @@ export default function ApplicationDetailPage() {
     const [amountModalOpen, setAmountModalOpen] = useState(false);
     const [amountForAccountant, setAmountForAccountant] = useState('');
     const [amountSubmitting, setAmountSubmitting] = useState(false);
+    const [selectedDocIndex, setSelectedDocIndex] = useState(null);
+
+    const openDocPreview = (index) => setSelectedDocIndex(index);
+    const closeDocPreview = () => setSelectedDocIndex(null);
+    const showPrevDoc = () => {
+        if (!form?.documents?.length) return;
+        setSelectedDocIndex((prev) => {
+            if (prev === null) return 0;
+            return prev === 0 ? form.documents.length - 1 : prev - 1;
+        });
+    };
+    const showNextDoc = () => {
+        if (!form?.documents?.length) return;
+        setSelectedDocIndex((prev) => {
+            if (prev === null) return 0;
+            return prev === form.documents.length - 1 ? 0 : prev + 1;
+        });
+    };
 
     // Fetch Data
     const fetchData = useCallback(async () => {
@@ -320,15 +339,24 @@ export default function ApplicationDetailPage() {
                                 </button>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     
-                                    <div className="space-y-2">
-                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Рақами телефонr</span>
-                                        <div className="text-white font-semibold text-lg flex items-center gap-2">
-                                            <div className="p-1.5 bg-emerald-500/10 rounded-lg">
-                                                <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                                            </div>
-                                            {form.phone_number}
+                                <div className="space-y-2">
+                                    <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">
+                                        Рақами телефон
+                                    </span>
+
+                                    {/* Ana telefon */}
+                                    <div className="text-white font-semibold text-lg flex items-center gap-2">
+                                        <div className="p-1.5 bg-emerald-500/10 rounded-lg">
+                                            <Phone className="w-3.5 h-3.5 text-emerald-400" />
                                         </div>
+                                        {form.phone_number}
                                     </div>
+                                    {poll?.family_phone_numbers?.map((phone) => (
+                                        <div key={phone.id} className="text-slate-300 text-sm pl-8">
+                                            {phone.phone_number}
+                                        </div>
+                                    ))}
+                                </div>
                                     <div className="space-y-2">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Минтақа</span>
                                         <div className="text-white font-semibold flex items-center gap-2">
@@ -449,6 +477,8 @@ export default function ApplicationDetailPage() {
                                             <thead className="text-xs text-slate-400 uppercase bg-slate-950/50">
                                                 <tr>
                                                     <th className="px-4 py-3 text-left font-semibold">Name</th>
+                                                    <th className="px-4 py-3 text-left font-semibold">Person</th>
+                                                    <th className="px-4 py-3 text-left font-semibold">Data of birth</th>
                                                     <th className="px-4 py-3 text-left font-semibold">Job</th>
                                                     <th className="px-4 py-3 text-left font-semibold">Income</th>
                                                 </tr>
@@ -457,6 +487,8 @@ export default function ApplicationDetailPage() {
                                                 {poll.family_workers.map((worker, i) => (
                                                     <tr key={i} className="hover:bg-white/5 transition-colors">
                                                         <td className="px-4 py-3 text-white font-medium">{worker.name}</td>
+                                                        <td className="px-4 py-3 text-slate-300">{worker.person}</td>
+                                                        <td className="px-4 py-3 text-slate-300">{worker.data_of_birth}</td>
                                                         <td className="px-4 py-3 text-slate-300">{worker.job}</td>
                                                         <td className="px-4 py-3 text-slate-300">{worker.monthly_income}</td>
                                                     </tr>
@@ -477,20 +509,20 @@ export default function ApplicationDetailPage() {
                                     </div>
                                     <h2 className="text-lg font-semibold text-white">Documents & Photos</h2>
                                 </div>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                                     {form.documents.map((doc, idx) => (
                                         <div
                                             key={doc.id}
-                                            className="group relative aspect-square rounded-xl overflow-hidden border-2 border-white/10 hover:border-blue-500/50 transition-all cursor-pointer shadow-lg hover:shadow-2xl hover:scale-105"
-                                            onClick={() => window.open(doc.file_url, '_blank')}
+                                            className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-blue-500/50 transition-all cursor-pointer shadow-md hover:shadow-xl"
+                                            onClick={() => openDocPreview(idx)}
                                         >
                                             <img
                                                 src={doc.file_url}
                                                 alt={`Document ${idx + 1}`}
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                                                <span className="text-white font-semibold text-sm px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                                                <span className="text-white font-semibold text-xs px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
                                                     View Full Size
                                                 </span>
                                             </div>
@@ -666,6 +698,60 @@ export default function ApplicationDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Document Preview Modal */}
+            {selectedDocIndex !== null && form?.documents?.[selectedDocIndex] && (
+                <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+                    <button
+                        type="button"
+                        onClick={closeDocPreview}
+                        className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+
+                    {form.documents.length > 1 && (
+                        <button
+                            type="button"
+                            onClick={showPrevDoc}
+                            className="absolute left-4 md:left-8 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                        >
+                            <ChevronLeft className="w-6 h-6" />
+                        </button>
+                    )}
+
+                    <div className="w-full max-w-5xl">
+                        <img
+                            src={form.documents[selectedDocIndex].file_url}
+                            alt={`Document ${selectedDocIndex + 1}`}
+                            className="w-full max-h-[78vh] object-contain rounded-xl"
+                        />
+                        <div className="mt-4 flex items-center justify-center gap-3 text-white">
+                            <span className="text-sm text-slate-300">
+                                {selectedDocIndex + 1} / {form.documents.length}
+                            </span>
+                            <a
+                                href={form.documents[selectedDocIndex].file_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+                            >
+                                Open Original
+                            </a>
+                        </div>
+                    </div>
+
+                    {form.documents.length > 1 && (
+                        <button
+                            type="button"
+                            onClick={showNextDoc}
+                            className="absolute right-4 md:right-8 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                        >
+                            <ChevronRight className="w-6 h-6" />
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Modal: Yardım miktarı (under_review → to_accountant) */}
             {amountModalOpen && (
