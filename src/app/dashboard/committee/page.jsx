@@ -136,6 +136,7 @@ export default function CommitteePage() {
 
             // Fix for 500 Error: Send Amount as Array of Objects (Nested Serializer)
             if (voting.type === 'to_accountant' && voting.amount) {
+                payload.approved_amount = parseFloat(voting.amount);
                 payload.aidmounts = [{ amount: parseFloat(voting.amount) }];
             }
 

@@ -54,9 +54,9 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
     );
 
     const SidebarContent = (
-        <div className="flex flex-col h-full bg-slate-900 border-r border-white/10">
+        <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-white/10">
             {/* Header with Gradient */}
-            <div className="relative overflow-hidden p-6 border-b border-white/10">
+            <div className="relative overflow-hidden p-6 border-b border-slate-200 dark:border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10" />
                 <div className="absolute -right-10 -top-10 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl" />
                 <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl" />
@@ -68,7 +68,7 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
                     {/* Close Button Mobile Only */}
                     <button
                         onClick={() => setIsOpen && setIsOpen(false)}
-                        className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                        className="md:hidden p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-all"
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -91,8 +91,8 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
                             className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
                                 isActive
-                                    ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white font-semibold shadow-lg border border-blue-500/30"
-                                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                                    ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-slate-900 dark:text-white font-semibold shadow-lg border border-blue-500/30"
+                                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
                             )}
                         >
                             {isActive && (
@@ -100,7 +100,7 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
                             )}
                             <Icon className={cn(
                                 "h-5 w-5 transition-colors relative z-10",
-                                isActive ? "text-blue-400" : "text-slate-500 group-hover:text-white"
+                                isActive ? "text-blue-500 dark:text-blue-400" : "text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white"
                             )} />
                             <span className="relative z-10">{item.name}</span>
                         </Link>
@@ -123,7 +123,7 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
                             </span>
                         </div>
                         {(Array.isArray(onlineUsers) && onlineUsers.length > 0) || (onlineUsers?.users?.length > 0) ? (
-                            <p className="text-xs text-slate-400 line-clamp-2">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
                                 {Array.isArray(onlineUsers)
                                     ? onlineUsers.map(u => u.username || u.name || 'User').join(', ')
                                     : onlineUsers?.users?.map(u => u.username).join(', ')
@@ -137,7 +137,7 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
             </div>
 
             {/* Logout Button */}
-            <div className="p-4 border-t border-white/10">
+            <div className="p-4 border-t border-slate-200 dark:border-white/10">
                 <button
                     onClick={logout}
                     className="flex items-center gap-3 w-full px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all border border-red-500/20 hover:border-red-500/40 group"
@@ -152,7 +152,7 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
     return (
         <>
             {/* Desktop Sidebar - Static */}
-            <div className="hidden md:flex h-screen w-64 flex-col fixed left-0 top-0 z-40 bg-slate-900 border-r border-white/10">
+            <div className="hidden md:flex h-screen w-64 flex-col fixed left-0 top-0 z-40 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-white/10">
                 {SidebarContent}
             </div>
 

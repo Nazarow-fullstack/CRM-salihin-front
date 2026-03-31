@@ -35,14 +35,14 @@ export default function DashboardLayout({ children }) {
 
     if (!mounted || !token) {
         return (
-            <div className="h-screen w-full flex items-center justify-center bg-background">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="h-screen w-full flex items-center justify-center bg-white dark:bg-slate-950">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background text-foreground flex">
+        <div className="dashboard-shell min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex">
             <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
             {/* Main Content Wrapper */}

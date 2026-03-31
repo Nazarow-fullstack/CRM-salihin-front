@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import api from '@/lib/axios';
 
@@ -20,6 +20,22 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
     const [familyWorkers, setFamilyWorkers] = useState(poll?.family_workers || []);
     const [familyPhones, setFamilyPhones] = useState(poll?.family_phone_numbers || []);
 
+    useEffect(() => {
+        if (!isOpen) return;
+
+        setFormData({
+            family_members: poll?.family_members || '',
+            financial_status: poll?.financial_status || '',
+            data_of_birth: poll?.data_of_birth || '',
+            profession_jobs: poll?.profession_jobs || '',
+            monthly_income: poll?.monthly_income || '',
+            yarim_reason: poll?.yarim_reason || '',
+        });
+        setFamilyWorkers(poll?.family_workers || []);
+        setFamilyPhones(poll?.family_phone_numbers || []);
+        setError(null);
+    }, [isOpen, poll]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -27,17 +43,34 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!poll?.id) return;
+        if (!formId && !poll?.id) return;
 
         setLoading(true);
         setError(null);
 
         try {
-            // Update poll data
-            await api.patch(`/polls/${poll.id}/`, formData);
+            let pollId = poll?.id;
+
+            if (pollId) {
+                await api.patch(`/polls/${pollId}/`, formData);
+            } else {
+                const response = await api.post('/polls/', { ...formData, form: formId });
+                pollId = response.data?.id;
+            }
+
+            if (!pollId) {
+                throw new Error('Poll ID not found after save');
+            }
+
+            const validWorkers = familyWorkers.filter((worker) =>
+                worker.name || worker.person || worker.job || worker.monthly_income || worker.data_of_birth
+            );
+            const validPhones = familyPhones.filter((phone) =>
+                phone.name_of_person || phone.phone_number
+            );
 
             // Delete existing family workers and add new ones
-            if (poll.family_workers) {
+            if (poll?.family_workers?.length) {
                 await Promise.all(
                     poll.family_workers.map(worker =>
                         api.delete(`/family-workers/${worker.id}/`)
@@ -47,13 +80,13 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
             // Add new family workers
             await Promise.all(
-                familyWorkers.map(worker =>
-                    api.post('/family-workers/', { ...worker, poll: poll.id })
+                validWorkers.map(worker =>
+                    api.post('/family-workers/', { ...worker, poll: pollId })
                 )
             );
 
             // Delete existing phones and add new ones
-            if (poll.family_phone_numbers) {
+            if (poll?.family_phone_numbers?.length) {
                 await Promise.all(
                     poll.family_phone_numbers.map(phone =>
                         api.delete(`/familyphonenumber/${phone.id}/`)
@@ -63,8 +96,8 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
             // Add new phones
             await Promise.all(
-                familyPhones.map(phone =>
-                    api.post('/familyphonenumber/', { ...phone, poll: poll.id })
+                validPhones.map(phone =>
+                    api.post('/familyphonenumber/', { ...phone, poll: pollId })
                 )
             );
 

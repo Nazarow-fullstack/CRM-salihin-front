@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
     Search,
     Plus,
@@ -43,18 +43,20 @@ const ITEMS_PER_PAGE = 10;
 
 export default function ApplicationsPage() {
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const [forms, setForms] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Filters
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [regionFilter, setRegionFilter] = useState('all');
-    const [purposeFilter, setPurposeFilter] = useState('all');
-    const [yarimReasonFilter, setYarimReasonFilter] = useState('all');
+    const [search, setSearch] = useState(() => searchParams.get('search') || '');
+    const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
+    const [regionFilter, setRegionFilter] = useState(() => searchParams.get('region') || 'all');
+    const [purposeFilter, setPurposeFilter] = useState(() => searchParams.get('purpose') || 'all');
+    const [yarimReasonFilter, setYarimReasonFilter] = useState(() => searchParams.get('yarim_reason') || 'all');
 
     // Pagination & Modal
-    const [page, setPage] = useState(1);
+    const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -84,6 +86,20 @@ export default function ApplicationsPage() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams();
+
+        if (search) params.set('search', search);
+        if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (regionFilter !== 'all') params.set('region', regionFilter);
+        if (purposeFilter !== 'all') params.set('purpose', purposeFilter);
+        if (yarimReasonFilter !== 'all') params.set('yarim_reason', yarimReasonFilter);
+        if (page > 1) params.set('page', String(page));
+
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    }, [search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter, page, pathname, router]);
 
     // 2. EXPORT LOGIC (Excel - filtered data)
     const handleExport = () => {
@@ -178,16 +194,27 @@ export default function ApplicationsPage() {
         setPage(1);
     }, [search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter]);
 
+    const handleRowNavigation = (event, itemId) => {
+        const href = `/dashboard/applications/${itemId}`;
+
+        if (event.metaKey || event.ctrlKey || event.button === 1) {
+            window.open(href, '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        router.push(href);
+    };
+
     return (
-        <div className="space-y-6">
+        <div className="applications-page-theme space-y-6">
 
             {/* HEADER */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-black ">
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                      Дархостҳо
                     </h1>
-                    <p className="text-gray-900">
+                    <p className="text-slate-600 dark:text-slate-400">
                      Дархостҳои кӯмак ва пешниҳодҳо
                     </p>
                 </div>
@@ -208,7 +235,7 @@ export default function ApplicationsPage() {
             </div>
 
             {/* FILTERS BAR */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                     <input
@@ -289,7 +316,13 @@ export default function ApplicationsPage() {
                                 paginatedData.map((item) => (
                                     <tr
                                         key={item.id}
-                                        onClick={() => router.push(`/dashboard/applications/${item.id}`)}
+                                        onClick={(e) => handleRowNavigation(e, item.id)}
+                                        onMouseDown={(e) => {
+                                            if (e.button === 1) {
+                                                e.preventDefault();
+                                                handleRowNavigation(e, item.id);
+                                            }
+                                        }}
                                         className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                                     >
                                         <td className="px-6 py-4 font-medium text-slate-500">#{item.id}</td>
@@ -306,7 +339,13 @@ export default function ApplicationsPage() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-400 hover:text-purple-600 transition-colors">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRowNavigation(e, item.id);
+                                                }}
+                                                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-400 hover:text-purple-600 transition-colors"
+                                            >
                                                 <ChevronRight className="w-4 h-4" />
                                             </button>
                                         </td>

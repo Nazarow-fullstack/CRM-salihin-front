@@ -43,6 +43,141 @@ const STATUS_COLORS = {
     deleted: 'text-gray-400 bg-gray-400/10 border-gray-400/20',
 };
 
+const ACTIVITY_DOT_COLORS = {
+    created: 'bg-blue-500',
+    new_message: 'bg-orange-400',
+    submitted: 'bg-blue-400',
+    under_review: 'bg-purple-400',
+    to_accountant: 'bg-teal-400',
+    rejected: 'bg-red-400',
+    approved: 'bg-emerald-400',
+    family_video: 'bg-pink-400',
+    help_later: 'bg-slate-400',
+    bank_card: 'bg-yellow-400',
+    deleted: 'bg-gray-400',
+};
+
+const ACTIVITY_DOT_HEX = {
+    new_message: '#fb923c',
+    submitted: '#60a5fa',
+    under_review: '#c084fc',
+    to_accountant: '#2dd4bf',
+    rejected: '#f87171',
+    approved: '#4ade80',
+    family_video: '#f472b6',
+    help_later: '#94a3b8',
+    bank_card: '#facc15',
+    deleted: '#9ca3af',
+};
+
+const extractHistoryItems = (data) => {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.histories)) return data.histories;
+    if (Array.isArray(data?.results)) return data.results;
+    if (Array.isArray(data?.history)) return data.history;
+    if (Array.isArray(data?.items)) return data.items;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.status_history)) return data.status_history;
+    if (Array.isArray(data?.status_changes)) return data.status_changes;
+    if (Array.isArray(data?.logs)) return data.logs;
+    if (Array.isArray(data?.activities)) return data.activities;
+
+    if (data && typeof data === 'object') {
+        const candidate = Object.values(data).find((value) =>
+            Array.isArray(value) &&
+            value.some((item) =>
+                item &&
+                typeof item === 'object' &&
+                (
+                    item.new_status ||
+                    item.status ||
+                    item.to_status ||
+                    item.changed_at ||
+                    item.created_at ||
+                    item.timestamp
+                )
+            )
+        );
+
+        if (Array.isArray(candidate)) return candidate;
+    }
+
+    return [];
+};
+
+const getHistoryStatusValue = (item) => {
+    if (!item || typeof item !== 'object') return null;
+
+    return (
+        item.new_status ||
+        item.status ||
+        item.to_status ||
+        item.new_value ||
+        item.newState ||
+        item.next_status ||
+        item.status_code ||
+        item.label ||
+        null
+    );
+};
+
+const getPreviousHistoryStatusValue = (item) => {
+    if (!item || typeof item !== 'object') return null;
+
+    return (
+        item.old_status ||
+        item.previous_status ||
+        item.from_status ||
+        item.old_value ||
+        item.previous_value ||
+        item.prev_status ||
+        null
+    );
+};
+
+const getHistoryActorName = (item) => {
+    if (!item || typeof item !== 'object') return null;
+
+    const directName =
+        item.changed_by_username ||
+        item.user_username ||
+        item.username ||
+        item.user_name ||
+        item.changed_by_name ||
+        item.full_name ||
+        item.actor_name;
+
+    if (directName) return directName;
+
+    const nestedUser =
+        item.user?.username ||
+        item.user?.full_name ||
+        item.user?.name ||
+        item.changed_by?.username ||
+        item.changed_by?.full_name ||
+        item.changed_by?.name;
+
+    if (nestedUser) return nestedUser;
+
+    const numericId = item.user || item.changed_by || item.user_id || item.changed_by_id;
+    if (numericId) return `Корбар #${numericId}`;
+
+    return null;
+};
+
+const getHistoryDateValue = (item) => {
+    if (!item || typeof item !== 'object') return null;
+
+    return (
+        item.changed_at ||
+        item.created_at ||
+        item.date ||
+        item.timestamp ||
+        item.updated_at ||
+        null
+    );
+};
+
 // Transition Logic (Ported)
 const STATUS_TRANSITIONS = {
     operator: {
@@ -106,6 +241,7 @@ export default function ApplicationDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [history, setHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(true);
     const [relatedForms, setRelatedForms] = useState([]);
     const [poll, setPoll] = useState(null);
 
@@ -126,17 +262,17 @@ export default function ApplicationDetailPage() {
     const openDocPreview = (index) => setSelectedDocIndex(index);
     const closeDocPreview = () => setSelectedDocIndex(null);
     const showPrevDoc = () => {
-        if (!form?.documents?.length) return;
+        if (!orderedDocuments.length) return;
         setSelectedDocIndex((prev) => {
             if (prev === null) return 0;
-            return prev === 0 ? form.documents.length - 1 : prev - 1;
+            return prev === 0 ? orderedDocuments.length - 1 : prev - 1;
         });
     };
     const showNextDoc = () => {
-        if (!form?.documents?.length) return;
+        if (!orderedDocuments.length) return;
         setSelectedDocIndex((prev) => {
             if (prev === null) return 0;
-            return prev === form.documents.length - 1 ? 0 : prev + 1;
+            return prev === orderedDocuments.length - 1 ? 0 : prev + 1;
         });
     };
 
@@ -144,14 +280,22 @@ export default function ApplicationDetailPage() {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
+            setHistoryLoading(true);
             const [formRes, historyRes, relatedRes] = await Promise.all([
                 api.get(`/forms/${id}/`),
-                api.get(`/forms/${id}/history/`).catch(() => ({ data: [] })),
+                api.get(`/history/form/${id}/`).catch(() => ({ data: [] })),
                 api.get(`/forms/${id}/related_forms/`).catch(() => ({ data: [] }))
             ]);
 
+            const extractedHistory = extractHistoryItems(historyRes.data);
+            const fallbackHistory = extractHistoryItems(formRes.data);
+
             setForm(formRes.data);
-            setHistory(historyRes.data);
+            setHistory(
+                fallbackHistory.length > extractedHistory.length
+                    ? fallbackHistory
+                    : extractedHistory
+            );
             setRelatedForms(relatedRes.data);
 
             if (formRes.data.polls && formRes.data.polls.length > 0) {
@@ -162,6 +306,7 @@ export default function ApplicationDetailPage() {
             setError('Failed to load application details.');
         } finally {
             setLoading(false);
+            setHistoryLoading(false);
         }
     }, [id]);
 
@@ -249,6 +394,51 @@ export default function ApplicationDetailPage() {
         return STATUS_TRANSITIONS[role]?.[form.status] || [];
     }, [user, form]);
 
+    const formHistory = useMemo(() => {
+        return history
+            .map((item, index) => {
+                const newStatus = getHistoryStatusValue(item);
+                const oldStatus = getPreviousHistoryStatusValue(item);
+                const changedAt = getHistoryDateValue(item);
+                const changedBy = getHistoryActorName(item);
+
+                return {
+                    id: item.id || `history-${index}`,
+                    old_status: oldStatus,
+                    new_status: newStatus,
+                    changed_at: changedAt,
+                    user: changedBy,
+                };
+            })
+            .filter((item) => item.new_status)
+            .sort((a, b) => new Date(a.changed_at || 0) - new Date(b.changed_at || 0));
+    }, [history]);
+
+    const orderedDocuments = useMemo(() => {
+        const docs = Array.isArray(form?.documents) ? [...form.documents] : [];
+        return docs.sort((a, b) => {
+            const dateA = new Date(a.uploaded_at || a.created_at || 0).getTime();
+            const dateB = new Date(b.uploaded_at || b.created_at || 0).getTime();
+
+            if (dateA && dateB && dateA !== dateB) {
+                return dateA - dateB;
+            }
+
+            return (a.id || 0) - (b.id || 0);
+        });
+    }, [form]);
+
+    const formatActivityDate = (value) => {
+        if (!value) return '—';
+        return new Date(value).toLocaleString('tg-TJ', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center p-12">
@@ -260,7 +450,7 @@ export default function ApplicationDetailPage() {
     if (!form) return <div className="p-8 text-center text-slate-400">Application not found</div>;
 
     return (
-        <div className="min-h-screen ">
+        <div className="application-detail-theme min-h-screen">
             <div className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-8 space-y-6">
                 {/* Enhanced Header with Gradient */}
                 <div className="relative">
@@ -476,11 +666,11 @@ export default function ApplicationDetailPage() {
                                         <table className="w-full text-sm">
                                             <thead className="text-xs text-slate-400 uppercase bg-slate-950/50">
                                                 <tr>
-                                                    <th className="px-4 py-3 text-left font-semibold">Name</th>
-                                                    <th className="px-4 py-3 text-left font-semibold">Person</th>
-                                                    <th className="px-4 py-3 text-left font-semibold">Data of birth</th>
-                                                    <th className="px-4 py-3 text-left font-semibold">Job</th>
-                                                    <th className="px-4 py-3 text-left font-semibold">Income</th>
+                                                    <th className="px-4 py-3 text-left font-semibold">Ном</th>
+                                                    <th className="px-4 py-3 text-left font-semibold">Шахс</th>
+                                                    <th className="px-4 py-3 text-left font-semibold">Санаи таваллуд</th>
+                                                    <th className="px-4 py-3 text-left font-semibold">Касб</th>
+                                                    <th className="px-4 py-3 text-left font-semibold">Маъоши моҳона</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-white/5">
@@ -501,7 +691,7 @@ export default function ApplicationDetailPage() {
                         )}
 
                         {/* Documents Section - Enhanced */}
-                        {form.documents && form.documents.length > 0 && (
+                        {orderedDocuments.length > 0 && (
                             <div className="relative bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-xl">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="p-2 bg-blue-500/10 rounded-xl">
@@ -510,7 +700,7 @@ export default function ApplicationDetailPage() {
                                     <h2 className="text-lg font-semibold text-white">Documents & Photos</h2>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                    {form.documents.map((doc, idx) => (
+                                    {orderedDocuments.map((doc, idx) => (
                                         <div
                                             key={doc.id}
                                             className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-blue-500/50 transition-all cursor-pointer shadow-md hover:shadow-xl"
@@ -537,7 +727,7 @@ export default function ApplicationDetailPage() {
                     <div className="space-y-6">
 
                         {/* Notes Section - Enhanced */}
-                        <div className="relative bg-slate-900 border border-white/10 rounded-2xl p-6 flex flex-col h-[600px] shadow-xl">
+                        <div className="relative bg-slate-900 border border-white/10 rounded-2xl p-6 flex flex-col h-[480px] shadow-xl">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="p-2 bg-blue-500/10 rounded-xl">
                                     <Clock className="w-5 h-5 text-blue-400" />
@@ -546,22 +736,6 @@ export default function ApplicationDetailPage() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#475569 transparent' }}>
-                                {history.map((item, i) => (
-                                    <div key={`hist-${i}`} className="flex gap-3 text-sm">
-                                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center shrink-0">
-                                            <Activity className="w-4 h-4 text-purple-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-white">
-                                                Status changed to <span className="font-semibold text-blue-400">{STATUS_LABELS[item.new_status] || item.new_status}</span>
-                                            </p>
-                                            <p className="text-xs text-slate-500 mt-1">
-                                                by <span className="text-slate-400 font-medium">{item.user}</span> • {new Date(item.changed_at).toLocaleString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-
                                 {form.notes?.map((note, i) => (
                                     <div key={note.id || i} className="flex gap-3 text-sm">
                                         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center shrink-0">
@@ -570,12 +744,24 @@ export default function ApplicationDetailPage() {
                                         <div className="flex-1 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-xl border border-white/10 p-4 shadow-lg">
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className="font-semibold text-blue-300">{note.user_username}</span>
-                                                <span className="text-[10px] text-slate-500 font-medium">{new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className="text-[10px] text-slate-500 font-medium">
+                                                    {new Date(note.created_at).toLocaleString('tg-TJ', {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </span>
                                             </div>
                                             <p className="text-slate-200 leading-relaxed">{note.note}</p>
                                         </div>
                                     </div>
                                 ))}
+
+                                {(!form.notes || form.notes.length === 0) && (
+                                    <p className="text-sm text-slate-500">Ҳоло ягон шарҳ нест.</p>
+                                )}
                             </div>
 
                             {/* Input Area - Enhanced */}
@@ -695,12 +881,75 @@ export default function ApplicationDetailPage() {
                             </div>
                         )}
 
+                        {/* Activity History */}
+                        <div className="relative bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-xl">
+                            <h2 className="text-lg font-semibold text-white mb-6">
+                                Таърихи фаъолият
+                            </h2>
+
+                            {historyLoading ? (
+                                <div className="flex justify-center py-4">
+                                    <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+                                </div>
+                            ) : (
+                                <div className="max-h-[420px] overflow-y-auto pr-2 space-y-6" style={{ scrollbarWidth: 'thin', scrollbarColor: '#475569 transparent' }}>
+                                    {form && (
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-3 h-3 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-base font-semibold text-white">Ариза пешниҳод карда шуд</p>
+                                                <p className="text-slate-400 mt-1 text-sm">Ариза: {form.full_name || '—'}</p>
+                                                {form.created_by_username && (
+                                                    <p className="text-slate-400 mt-1 text-sm">Эҷод карда шуд: {form.created_by_username}</p>
+                                                )}
+                                                <p className="text-slate-400 mt-1 text-sm">{formatActivityDate(form.created_at)}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {formHistory.map((historyItem) => (
+                                        <div key={historyItem.id} className="flex items-start gap-4">
+                                            <div
+                                                className="w-3 h-3 rounded-full mt-1.5 shrink-0"
+                                                style={{ backgroundColor: ACTIVITY_DOT_HEX[historyItem.new_status] || '#9CA3AF' }}
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-base font-semibold text-white">
+                                                    {STATUS_LABELS[historyItem.new_status] || historyItem.new_status || 'Тағйири вазъият'}
+                                                </p>
+                                                {historyItem.old_status && (
+                                                    <p className="text-slate-400 mt-1 text-sm">
+                                                        Аз: {STATUS_LABELS[historyItem.old_status] || historyItem.old_status}
+                                                    </p>
+                                                )}
+                                                <p className="text-slate-400 mt-1 text-sm">
+                                                    Ба: {STATUS_LABELS[historyItem.new_status] || historyItem.new_status || '—'}
+                                                </p>
+                                                <p className="text-slate-400 mt-1 text-sm">
+                                                    аз ҷониби {historyItem.user || '—'}
+                                                </p>
+                                                <p className="text-slate-400 mt-1 text-sm">
+                                                    {formatActivityDate(historyItem.changed_at)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {formHistory.length === 0 && (
+                                        <div className="p-3 rounded-xl bg-white/5 text-center">
+                                            <p className="text-sm text-slate-500">Ҳанӯз ҳеҷ тағйири вазъият нест</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                     </div>
                 </div>
             </div>
 
             {/* Document Preview Modal */}
-            {selectedDocIndex !== null && form?.documents?.[selectedDocIndex] && (
+            {selectedDocIndex !== null && orderedDocuments[selectedDocIndex] && (
                 <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
                     <button
                         type="button"
@@ -710,7 +959,7 @@ export default function ApplicationDetailPage() {
                         <X className="w-6 h-6" />
                     </button>
 
-                    {form.documents.length > 1 && (
+                    {orderedDocuments.length > 1 && (
                         <button
                             type="button"
                             onClick={showPrevDoc}
@@ -722,16 +971,16 @@ export default function ApplicationDetailPage() {
 
                     <div className="w-full max-w-5xl">
                         <img
-                            src={form.documents[selectedDocIndex].file_url}
+                            src={orderedDocuments[selectedDocIndex].file_url}
                             alt={`Document ${selectedDocIndex + 1}`}
                             className="w-full max-h-[78vh] object-contain rounded-xl"
                         />
                         <div className="mt-4 flex items-center justify-center gap-3 text-white">
                             <span className="text-sm text-slate-300">
-                                {selectedDocIndex + 1} / {form.documents.length}
+                                {selectedDocIndex + 1} / {orderedDocuments.length}
                             </span>
                             <a
-                                href={form.documents[selectedDocIndex].file_url}
+                                href={orderedDocuments[selectedDocIndex].file_url}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-sm px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
@@ -741,7 +990,7 @@ export default function ApplicationDetailPage() {
                         </div>
                     </div>
 
-                    {form.documents.length > 1 && (
+                    {orderedDocuments.length > 1 && (
                         <button
                             type="button"
                             onClick={showNextDoc}
