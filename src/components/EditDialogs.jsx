@@ -41,6 +41,32 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const sanitizePollPayload = (data) => ({
+        family_members: data.family_members === '' ? null : Number(data.family_members),
+        financial_status: data.financial_status || '',
+        data_of_birth: data.data_of_birth || null,
+        profession_jobs: data.profession_jobs || '',
+        monthly_income: data.monthly_income === '' ? null : data.monthly_income,
+        yarim_reason: data.yarim_reason || '',
+    });
+
+    const compactPayload = (payload) =>
+        Object.fromEntries(
+            Object.entries(payload).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+        );
+
+    const buildFormData = (payload) => {
+        const multipart = new FormData();
+
+        Object.entries(payload).forEach(([key, value]) => {
+            if (value !== '' && value !== null && value !== undefined) {
+                multipart.append(key, String(value));
+            }
+        });
+
+        return multipart;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formId && !poll?.id) return;
@@ -50,11 +76,33 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
         try {
             let pollId = poll?.id;
+            const pollPayload = compactPayload(sanitizePollPayload(formData));
+
+            if (!pollId && formId) {
+                const existingPollsResponse = await api.get('/polls/', {
+                    params: { form_id: formId }
+                }).catch(() => ({ data: [] }));
+
+                const existingPolls = Array.isArray(existingPollsResponse.data)
+                    ? existingPollsResponse.data
+                    : existingPollsResponse.data?.results || [];
+
+                if (existingPolls.length > 0) {
+                    pollId = existingPolls[0].id;
+                }
+            }
 
             if (pollId) {
-                await api.patch(`/polls/${pollId}/`, formData);
+                await api.patch(`/polls/${pollId}/`, pollPayload);
             } else {
-                const response = await api.post('/polls/', { ...formData, form: formId });
+                // Use the legacy endpoint that already works in the backend.
+                const response = await api.post(
+                    `/forms/${formId}/add_poll/`,
+                    buildFormData(pollPayload),
+                    {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    }
+                );
                 pollId = response.data?.id;
             }
 
@@ -62,11 +110,18 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                 throw new Error('Poll ID not found after save');
             }
 
-            const validWorkers = familyWorkers.filter((worker) =>
-                worker.name || worker.person || worker.job || worker.monthly_income || worker.data_of_birth
-            );
+            const validWorkers = familyWorkers
+                .filter((worker) =>
+                    worker.name || worker.person || worker.job || worker.monthly_income || worker.data_of_birth
+                )
+                .map((worker) => ({
+                    ...worker,
+                    monthly_income: worker.monthly_income === '' ? null : worker.monthly_income,
+                    data_of_birth: worker.data_of_birth || null,
+                }));
+
             const validPhones = familyPhones.filter((phone) =>
-                phone.name_of_person || phone.phone_number
+                phone.name_of_person?.trim() && phone.phone_number?.trim()
             );
 
             // Delete existing family workers and add new ones
@@ -105,7 +160,11 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
             onClose();
         } catch (err) {
             console.error('Error updating poll:', err);
-            setError('Failed to update survey data');
+            const backendError =
+                err.response?.data?.detail ||
+                Object.values(err.response?.data || {}).flat().join(' ') ||
+                'Failed to update survey data';
+            setError(backendError);
         } finally {
             setLoading(false);
         }
