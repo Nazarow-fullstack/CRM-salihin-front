@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getForms, createPayment } from '@/services/api';
+import { formatFormDisplayName } from '@/lib/formDisplayName';
 
 // --- UTILS ---
 const formatDate = (dateString) => {
@@ -95,7 +96,12 @@ export default function AccountingPage() {
 
             // 2. Search Filter
             const searchLower = search.toLowerCase();
-            const nameMatch = item.full_name?.toLowerCase().includes(searchLower);
+            const nameMatch =
+                formatFormDisplayName(item).toLowerCase().includes(searchLower) ||
+                item.full_name?.toLowerCase().includes(searchLower) ||
+                item.first_name?.toLowerCase().includes(searchLower) ||
+                item.last_name?.toLowerCase().includes(searchLower) ||
+                item.father_name?.toLowerCase().includes(searchLower);
             const idMatch = String(item.id).includes(searchLower);
 
             if (!nameMatch && !idMatch) return false;
@@ -172,7 +178,8 @@ export default function AccountingPage() {
                     <div class="info-row"><div class="info-label">Шумораи аъзоёни оила:</div><div class="info-value">${escapeHtml(poll.family_members)}</div></div>
                     <div class="info-row"><div class="info-label">Вазъи молиявӣ:</div><div class="info-value">${escapeHtml(poll.financial_status)}</div></div>
                     <div class="info-row"><div class="info-label">Сабаби кӯмак:</div><div class="info-value">${escapeHtml(poll.yarim_reason)}</div></div>
-                    ${poll.family_workers?.map(w => `<div class="info-row"><div class="info-label">Коргар:</div><div class="info-value">${escapeHtml(w.name)} (${escapeHtml(w.job)}) - ${escapeHtml(w.monthly_income)}c</div></div>`).join('') || ''}
+                    <div class="info-row"><div class="info-label">Ҷойи зист:</div><div class="info-value">${escapeHtml(poll.place_of_residence)}</div></div>
+                    ${poll.family_workers?.map(w => `<div class="info-row"><div class="info-label">Коргар:</div><div class="info-value">${escapeHtml(w.name)} — ${escapeHtml(w.person_situation || '—')} — ${escapeHtml(w.job)} — ${escapeHtml(w.monthly_income)}</div></div>`).join('') || ''}
                 </div>
             `;
         }
@@ -227,7 +234,7 @@ export default function AccountingPage() {
                     <div class="section">
                         <h2 class="section-title">Маълумоти аризадиҳанда</h2>
                         <div class="info-row"><div class="info-label">ID:</div><div class="info-value">#${form.id}</div></div>
-                        <div class="info-row"><div class="info-label">Ном ва насаб:</div><div class="info-value">${escapeHtml(form.full_name)}</div></div>
+                        <div class="info-row"><div class="info-label">Ном ва насаб:</div><div class="info-value">${escapeHtml(formatFormDisplayName(form) || form.full_name)}</div></div>
                         <div class="info-row"><div class="info-label">Телефон:</div><div class="info-value">${escapeHtml(form.phone_number)}</div></div>
                         <div class="info-row"><div class="info-label">Минтақа:</div><div class="info-value">${escapeHtml(form.address_region)}</div></div>
                     </div>
@@ -444,7 +451,7 @@ export default function AccountingPage() {
                                                 <td className="px-6 py-4">
                                                     <div>
                                                         <p className="text-white font-medium hover:text-teal-400 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/applications/${item.id}`)}>
-                                                            {item.full_name || 'Номаълум'}
+                                                            {formatFormDisplayName(item) || item.full_name || 'Номаълум'}
                                                         </p>
                                                         <p className="text-xs text-slate-500">{item.phone_number}</p>
                                                     </div>
@@ -564,7 +571,7 @@ export default function AccountingPage() {
                                 <div className="space-y-4 relative z-10">
                                     <div className="bg-white/5 p-4 rounded-xl">
                                         <p className="text-sm text-slate-400">Аризадиҳанда</p>
-                                        <p className="text-lg font-medium text-white">{paymentModal.data?.full_name}</p>
+                                        <p className="text-lg font-medium text-white">{formatFormDisplayName(paymentModal.data) || paymentModal.data?.full_name}</p>
                                         <p className="text-teal-400 font-bold mt-1">
                                             {paymentModal.data?.aidmounts?.[0]?.amount ? `${paymentModal.data.aidmounts[0].amount} сомонӣ` : '—'}
                                         </p>

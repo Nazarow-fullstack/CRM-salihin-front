@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import api from '@/lib/axios';
 
+const PLACE_OF_RESIDENCE_OPTIONS = ['Хонаи шахсӣ', 'Иҷора'];
+const PERSON_SITUATION_OPTIONS = ['Маъюб', 'Ятим', 'Нимятим', 'Нафақахур', 'Бевазан', 'Камбизоат'];
+
 export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -15,6 +18,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
         profession_jobs: poll?.profession_jobs || '',
         monthly_income: poll?.monthly_income || '',
         yarim_reason: poll?.yarim_reason || '',
+        place_of_residence: poll?.place_of_residence || '',
     });
 
     const [familyWorkers, setFamilyWorkers] = useState(poll?.family_workers || []);
@@ -30,6 +34,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
             profession_jobs: poll?.profession_jobs || '',
             monthly_income: poll?.monthly_income || '',
             yarim_reason: poll?.yarim_reason || '',
+            place_of_residence: poll?.place_of_residence || '',
         });
         setFamilyWorkers(poll?.family_workers || []);
         setFamilyPhones(poll?.family_phone_numbers || []);
@@ -48,6 +53,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
         profession_jobs: data.profession_jobs || '',
         monthly_income: data.monthly_income === '' ? null : data.monthly_income,
         yarim_reason: data.yarim_reason || '',
+        place_of_residence: data.place_of_residence || null,
     });
 
     const compactPayload = (payload) =>
@@ -112,13 +118,22 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
 
             const validWorkers = familyWorkers
                 .filter((worker) =>
-                    worker.name || worker.person || worker.job || worker.monthly_income || worker.data_of_birth
+                    worker.name ||
+                    worker.person ||
+                    worker.job ||
+                    worker.monthly_income ||
+                    worker.data_of_birth ||
+                    worker.person_situation
                 )
-                .map((worker) => ({
-                    ...worker,
-                    monthly_income: worker.monthly_income === '' ? null : worker.monthly_income,
-                    data_of_birth: worker.data_of_birth || null,
-                }));
+                .map((worker) => {
+                    const { id: _workerId, poll: _workerPoll, ...rest } = worker;
+                    return {
+                        ...rest,
+                        monthly_income: worker.monthly_income === '' ? null : worker.monthly_income,
+                        data_of_birth: worker.data_of_birth || null,
+                        person_situation: worker.person_situation === '' ? null : worker.person_situation,
+                    };
+                });
 
             const validPhones = familyPhones.filter((phone) =>
                 phone.name_of_person?.trim() && phone.phone_number?.trim()
@@ -234,16 +249,16 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                             />
                         </div>
 
-                        <div>
+                        <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-slate-400 mb-2">
                                 Кор / Касб
                             </label>
-                            <input
-                                type="text"
+                            <textarea
                                 name="profession_jobs"
                                 value={formData.profession_jobs}
                                 onChange={handleChange}
-                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                rows={4}
+                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-y min-h-[5rem]"
                             />
                         </div>
                     </div>
@@ -281,6 +296,23 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                         </select>
                     </div>
 
+                    <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">
+                            Ҷойи зист
+                        </label>
+                        <select
+                            name="place_of_residence"
+                            value={formData.place_of_residence}
+                            onChange={handleChange}
+                            className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        >
+                            <option value="">Интихоб кунед</option>
+                            {PLACE_OF_RESIDENCE_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt} className="bg-slate-800 text-white">{opt}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* Family Workers */}
                     <div>
                         <div className="flex items-center justify-between mb-3">
@@ -289,7 +321,19 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                             </label>
                             <button
                                 type="button"
-                                onClick={() => setFamilyWorkers([...familyWorkers, { person: '', name: '', job: '', monthly_income: '', data_of_birth: '' }])}
+                                onClick={() =>
+                                    setFamilyWorkers([
+                                        ...familyWorkers,
+                                        {
+                                            person: '',
+                                            name: '',
+                                            job: '',
+                                            monthly_income: '',
+                                            data_of_birth: '',
+                                            person_situation: '',
+                                        },
+                                    ])
+                                }
                                 className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1"
                             >
                                 <Plus className="w-4 h-4" /> Add
@@ -330,16 +374,30 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                                         }}
                                         className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                     />
-                                    <input
-                                        type="text"
+                                    <select
+                                        value={worker.person_situation || ''}
+                                        onChange={(e) => {
+                                            const updated = [...familyWorkers];
+                                            updated[idx].person_situation = e.target.value;
+                                            setFamilyWorkers(updated);
+                                        }}
+                                        className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 md:col-span-2"
+                                    >
+                                        <option value="">Интихоб кунед (вазъияти шахс)</option>
+                                        {PERSON_SITUATION_OPTIONS.map((opt) => (
+                                            <option key={opt} value={opt} className="bg-slate-900">{opt}</option>
+                                        ))}
+                                    </select>
+                                    <textarea
                                         placeholder="Кор / Касб"
+                                        rows={2}
                                         value={worker.job}
                                         onChange={(e) => {
                                             const updated = [...familyWorkers];
                                             updated[idx].job = e.target.value;
                                             setFamilyWorkers(updated);
                                         }}
-                                        className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                        className="bg-slate-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-y min-h-[2.75rem] md:col-span-2"
                                     />
                                     <input
                                         type="date"
@@ -452,12 +510,31 @@ export function EditFormDialog({ isOpen, onClose, form, onSuccess }) {
 
     const [formData, setFormData] = useState({
         full_name: form?.full_name || '',
+        last_name: form?.last_name || '',
+        first_name: form?.first_name || '',
+        father_name: form?.father_name || '',
         phone_number: form?.phone_number || '',
         address_region: form?.address_region || '',
         detailed_address: form?.detailed_address || '',
         application_purpose: form?.application_purpose || '',
         description: form?.description || '',
     });
+
+    useEffect(() => {
+        if (!isOpen || !form) return;
+        setFormData({
+            full_name: form.full_name || '',
+            last_name: form.last_name || '',
+            first_name: form.first_name || '',
+            father_name: form.father_name || '',
+            phone_number: form.phone_number || '',
+            address_region: form.address_region || '',
+            detailed_address: form.detailed_address || '',
+            application_purpose: form.application_purpose || '',
+            description: form.description || '',
+        });
+        setError(null);
+    }, [isOpen, form]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -472,7 +549,11 @@ export function EditFormDialog({ isOpen, onClose, form, onSuccess }) {
         setError(null);
 
         try {
-            await api.patch(`/forms/${form.id}/`, formData);
+            const payload = {
+                ...formData,
+                full_name: formData.full_name.trim() || null,
+            };
+            await api.patch(`/forms/${form.id}/`, payload);
             onSuccess?.();
             onClose();
         } catch (err) {
@@ -509,26 +590,73 @@ export function EditFormDialog({ isOpen, onClose, form, onSuccess }) {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-400 mb-2">
-                                Full Name
-                            </label>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">ID</label>
                             <input
                                 type="text"
-                                name="full_name"
-                                value={formData.full_name}
-                                onChange={handleChange}
-                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                readOnly
+                                value={form.id ?? ''}
+                                className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-2.5 text-slate-400 cursor-not-allowed"
                             />
                         </div>
-
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-2">
-                                Phone Number
+                                Рақами телефон
                             </label>
                             <input
                                 type="text"
                                 name="phone_number"
                                 value={formData.phone_number}
+                                onChange={handleChange}
+                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">
+                            Full name
+                        </label>
+                        <p className="text-xs text-slate-500 mb-2">Агар холӣ бошад, null сабт мешавад</p>
+                        <input
+                            type="text"
+                            name="full_name"
+                            maxLength={255}
+                            value={formData.full_name}
+                            onChange={handleChange}
+                            className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Насаб (фамилия)</label>
+                            <input
+                                type="text"
+                                name="last_name"
+                                maxLength={255}
+                                value={formData.last_name}
+                                onChange={handleChange}
+                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Ном (ном)</label>
+                            <input
+                                type="text"
+                                name="first_name"
+                                maxLength={255}
+                                value={formData.first_name}
+                                onChange={handleChange}
+                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Номи падар (отчество)</label>
+                            <input
+                                type="text"
+                                name="father_name"
+                                maxLength={255}
+                                value={formData.father_name}
                                 onChange={handleChange}
                                 className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                             />

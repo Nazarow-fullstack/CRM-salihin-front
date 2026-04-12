@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
+import { formatFormDisplayName } from '@/lib/formDisplayName';
 
 // Helper Functions
 function calculateAge(dateString) {
@@ -100,9 +101,11 @@ export default function FamilyDetailPage() {
     // Find all forms with same name
     const sameNameForms = useMemo(() => {
         if (!family || !allForms.length) return [];
-        return allForms.filter(f =>
-            f.full_name && f.full_name.trim().toLowerCase() === family.full_name.trim().toLowerCase()
-        );
+        return allForms.filter((f) => {
+            const famA = (formatFormDisplayName(family) || family.full_name || '').trim().toLowerCase();
+            const famB = (formatFormDisplayName(f) || f.full_name || '').trim().toLowerCase();
+            return famA && famB && famA === famB;
+        });
     }, [family, allForms]);
 
     // Combine all polls from same-name forms
@@ -179,7 +182,7 @@ export default function FamilyDetailPage() {
                                         <User className="w-16 h-16 text-white" />
                                     </div>
                                     <div className="w-full">
-                                        <h2 className="text-2xl font-bold text-white">{family.full_name}</h2>
+                                        <h2 className="text-2xl font-bold text-white">{formatFormDisplayName(family) || family.full_name || '—'}</h2>
                                         {age && (
                                             <p className="text-lg text-slate-400 mt-2">{age} сола</p>
                                         )}
@@ -327,7 +330,7 @@ export default function FamilyDetailPage() {
                                         <h3 className="text-lg font-semibold text-white">Маълумоти асосии ариза</h3>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <InfoRow label="Ном ва насаб" value={family.full_name} />
+                                        <InfoRow label="Ном ва насаб" value={formatFormDisplayName(family) || family.full_name || '—'} />
                                         <InfoRow label="Телефон" value={family.phone_number} />
                                         <InfoRow label="Минтақа" value={family.address_region} />
                                         <InfoRow label="Мақсади ариза" value={family.application_purpose} />
@@ -360,6 +363,7 @@ export default function FamilyDetailPage() {
                                         <InfoRow label="Маъоши моҳона" value={selectedPoll.monthly_income} icon={<DollarSign className="w-4 h-4" />} />
                                         <InfoRow label="Касб" value={selectedPoll.profession_jobs} icon={<Briefcase className="w-4 h-4" />} />
                                         <InfoRow label="Санаи таваллуд" value={selectedPoll.data_of_birth} icon={<Calendar className="w-4 h-4" />} />
+                                        <InfoRow label="Ҷойи зист" value={selectedPoll.place_of_residence} />
                                         <div className="md:col-span-2">
                                             <InfoRow label="Вазъи молиявӣ" value={selectedPoll.financial_status} />
                                         </div>
@@ -372,10 +376,14 @@ export default function FamilyDetailPage() {
                                             <div className="space-y-2">
                                                 {selectedPoll.family_workers.map((worker, idx) => (
                                                     <div key={idx} className="p-3 bg-white/5 rounded-lg border border-white/5">
-                                                        <div className="grid grid-cols-3 gap-2 text-sm">
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                                                             <div>
                                                                 <span className="text-slate-500 text-xs">Ном:</span>
                                                                 <p className="text-white font-medium">{worker.name || '—'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-slate-500 text-xs">Вазъияти шахс:</span>
+                                                                <p className="text-white font-medium">{worker.person_situation || '—'}</p>
                                                             </div>
                                                             <div>
                                                                 <span className="text-slate-500 text-xs">Касб:</span>

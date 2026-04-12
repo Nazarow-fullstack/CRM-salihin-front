@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import api from '@/lib/axios';
+import { formatFormDisplayName } from '@/lib/formDisplayName';
 
 const useAppStore = create((set, get) => ({
     onlineUsers: [],
@@ -23,28 +24,74 @@ const useAppStore = create((set, get) => ({
 
     fetchNotifications: async () => {
         try {
-            const response = await api.get('/forms/');
-            const forms = response.data;
+            const normalizeList = (data) => {
+                if (Array.isArray(data)) return data;
+                if (Array.isArray(data?.results)) return data.results;
+                return [];
+            };
 
-            // Process for Notifications (e.g., new forms in last 24h)
-            // This is a basic implementation. In a real app, you might want to fetch a dedicated notifications endpoint.
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const newForms = forms.filter(f => new Date(f.created_at) > oneDayAgo);
+            const [formsRes, notesRes] = await Promise.all([
+                api.get('/forms/'),
+                api.get('/form-notes/', { params: { ordering: '-created_at' } }).catch(() => ({ data: [] })),
+            ]);
 
-            const notifications = newForms.map(f => ({
-                id: f.id,
-                title: 'New Application',
-                message: `${f.full_name || 'Anonymous'} submitted a new application (ID: ${f.id}).`,
+            const forms = normalizeList(formsRes.data);
+            const notesList = normalizeList(notesRes?.data);
+
+            const oneDayMs = 24 * 60 * 60 * 1000;
+            const sevenDayMs = 7 * oneDayMs;
+            const cutoffForms = Date.now() - oneDayMs;
+            const cutoffNotes = Date.now() - sevenDayMs;
+
+            const newForms = forms.filter((f) => new Date(f.created_at).getTime() > cutoffForms);
+
+            const formNotifications = newForms.map((f) => ({
+                id: `form-${f.id}`,
+                kind: 'form',
+                formId: f.id,
+                title: 'Дархости нав',
+                message: `${formatFormDisplayName(f) || f.full_name || 'Номаълум'} — аризаи нав (#${f.id}).`,
                 time: new Date(f.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                sortAt: new Date(f.created_at).getTime(),
                 read: false,
-                type: 'info'
+                type: 'info',
             }));
+
+            const noteNotifications = notesList
+                .filter((n) => {
+                    if (!n?.created_at) return false;
+                    if (new Date(n.created_at).getTime() < cutoffNotes) return false;
+                    const fid = typeof n.form === 'object' && n.form != null ? n.form.id : n.form;
+                    return fid != null;
+                })
+                .slice(0, 40)
+                .map((n) => {
+                    const fid = typeof n.form === 'object' && n.form != null ? n.form.id : n.form;
+                    const text = (n.note || '').trim();
+                    const preview = text.length > 100 ? `${text.slice(0, 100)}…` : text || 'Шарҳ';
+                    return {
+                        id: `note-${n.id}`,
+                        kind: 'note',
+                        formId: fid,
+                        title: 'Шарҳи нав',
+                        message: preview,
+                        time: new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        sortAt: new Date(n.created_at).getTime(),
+                        read: false,
+                        type: 'comment',
+                    };
+                });
+
+            const notifications = [...noteNotifications, ...formNotifications]
+                .sort((a, b) => b.sortAt - a.sortAt)
+                .slice(0, 50)
+                .map(({ sortAt, ...rest }) => rest);
 
             // Process for Recent Activity (limit to top 4 latest)
             const sortedForms = [...forms].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             const recent = sortedForms.slice(0, 4).map(f => ({
                 id: f.id,
-                user: f.full_name || 'Anonymous',
+                user: formatFormDisplayName(f) || f.full_name || 'Anonymous',
                 action: `Submitted Application #${f.id}`,
                 time: (() => {
                     const date = new Date(f.created_at);

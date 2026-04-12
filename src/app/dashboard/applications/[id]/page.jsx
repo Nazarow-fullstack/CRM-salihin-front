@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -8,13 +8,14 @@ import {
     ArrowLeft, Edit, CreditCard, Check, X,
     Plus, Trash2, Clock, AlertCircle, Loader2,
     Send, Briefcase, Users, DollarSign, Activity,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, RotateCw, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/useAuthStore';
 import api from '@/lib/axios';
 import { EditFormDialog, EditPollDialog } from '@/components/EditDialogs';
+import { formatFormDisplayName } from '@/lib/formDisplayName';
 
 // Status Constants
 const STATUS_LABELS = {
@@ -235,6 +236,8 @@ export default function ApplicationDetailPage() {
     const router = useRouter();
     const { user } = useAuthStore();
     const id = params.id;
+    const idRef = useRef(id);
+    idRef.current = id;
 
     // State
     const [form, setForm] = useState(null);
@@ -258,6 +261,9 @@ export default function ApplicationDetailPage() {
     const [amountForAccountant, setAmountForAccountant] = useState('');
     const [amountSubmitting, setAmountSubmitting] = useState(false);
     const [selectedDocIndex, setSelectedDocIndex] = useState(null);
+    const [previewRotationByDocId, setPreviewRotationByDocId] = useState({});
+    const [deletingDocumentId, setDeletingDocumentId] = useState(null);
+    const openPollHandledRef = useRef(false);
 
     const openDocPreview = (index) => setSelectedDocIndex(index);
     const closeDocPreview = () => setSelectedDocIndex(null);
@@ -276,43 +282,75 @@ export default function ApplicationDetailPage() {
         });
     };
 
-    // Fetch Data
+    // Fetch: аввал форма (зуд намоиш), баъд таърих ва алоқаманд — дар замина
     const fetchData = useCallback(async () => {
+        const formId = id;
+        const isStale = () => idRef.current !== formId;
+
         try {
+            setError(null);
             setLoading(true);
             setHistoryLoading(true);
-            const [formRes, historyRes, relatedRes] = await Promise.all([
-                api.get(`/forms/${id}/`),
-                api.get(`/history/form/${id}/`).catch(() => ({ data: [] })),
-                api.get(`/forms/${id}/related_forms/`).catch(() => ({ data: [] }))
+
+            const formRes = await api.get(`/forms/${formId}/`);
+            if (isStale()) return;
+
+            const fallbackHistory = extractHistoryItems(formRes.data);
+            setForm(formRes.data);
+            setHistory(fallbackHistory);
+            setRelatedForms([]);
+            if (formRes.data.polls && formRes.data.polls.length > 0) {
+                setPoll(formRes.data.polls[0]);
+            } else {
+                setPoll(null);
+            }
+            setLoading(false);
+
+            const [historyRes, relatedRes] = await Promise.all([
+                api.get(`/history/form/${formId}/`).catch(() => ({ data: [] })),
+                api.get(`/forms/${formId}/related_forms/`).catch(() => ({ data: [] })),
             ]);
+            if (isStale()) return;
 
             const extractedHistory = extractHistoryItems(historyRes.data);
-            const fallbackHistory = extractHistoryItems(formRes.data);
-
-            setForm(formRes.data);
             setHistory(
                 fallbackHistory.length > extractedHistory.length
                     ? fallbackHistory
                     : extractedHistory
             );
-            setRelatedForms(relatedRes.data);
-
-            if (formRes.data.polls && formRes.data.polls.length > 0) {
-                setPoll(formRes.data.polls[0]);
-            }
+            const relRaw = relatedRes.data;
+            setRelatedForms(Array.isArray(relRaw) ? relRaw : relRaw?.results ?? []);
         } catch (err) {
             console.error(err);
-            setError('Failed to load application details.');
+            if (!isStale()) {
+                setError('Failed to load application details.');
+            }
         } finally {
-            setLoading(false);
-            setHistoryLoading(false);
+            if (!isStale()) {
+                setLoading(false);
+                setHistoryLoading(false);
+            }
         }
     }, [id]);
 
     useEffect(() => {
         if (id) fetchData();
     }, [id, fetchData]);
+
+    useEffect(() => {
+        openPollHandledRef.current = false;
+    }, [id]);
+
+    useEffect(() => {
+        if (loading || !form) return;
+        if (typeof window === 'undefined') return;
+        if (openPollHandledRef.current) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('openPoll') !== '1') return;
+        openPollHandledRef.current = true;
+        setIsEditPollOpen(true);
+        router.replace(`/dashboard/applications/${id}`, { scroll: false });
+    }, [loading, form, id, router]);
 
     // Handle Status Change
     const handleStatusChange = async (newStatus) => {
@@ -428,6 +466,54 @@ export default function ApplicationDetailPage() {
         });
     }, [form]);
 
+    const rotatePreviewBy = useCallback((deltaDeg) => {
+        if (selectedDocIndex === null) return;
+        const doc = orderedDocuments[selectedDocIndex];
+        if (!doc) return;
+        const key = doc.id != null ? doc.id : `idx-${selectedDocIndex}`;
+        setPreviewRotationByDocId((prev) => {
+            const cur = prev[key] || 0;
+            const next = (((cur + deltaDeg) % 360) + 360) % 360;
+            return { ...prev, [key]: next };
+        });
+    }, [selectedDocIndex, orderedDocuments]);
+
+    const handleDeleteDocument = useCallback(
+        async (docId) => {
+            if (docId == null) return;
+            if (!window.confirm('Ҳуҷҷат нест шавад? Ин амал барқартар нест.')) return;
+            const delIdx = orderedDocuments.findIndex((d) => d.id === docId);
+            try {
+                setDeletingDocumentId(docId);
+                await api.delete(`/documents/${docId}/`);
+                setPreviewRotationByDocId((prev) => {
+                    if (!prev[docId]) return prev;
+                    const next = { ...prev };
+                    delete next[docId];
+                    return next;
+                });
+                setSelectedDocIndex((prev) => {
+                    if (prev === null) return null;
+                    if (delIdx === -1) return prev;
+                    if (prev === delIdx) {
+                        const remaining = orderedDocuments.length - 1;
+                        if (remaining <= 0) return null;
+                        return Math.min(prev, remaining - 1);
+                    }
+                    if (prev > delIdx) return prev - 1;
+                    return prev;
+                });
+                await fetchData();
+            } catch (err) {
+                console.error(err);
+                alert('Нест кардани ҳуҷҷат муяссар нашуд');
+            } finally {
+                setDeletingDocumentId(null);
+            }
+        },
+        [orderedDocuments, fetchData]
+    );
+
     const formatActivityDate = (value) => {
         if (!value) return '—';
         return new Date(value).toLocaleString('tg-TJ', {
@@ -519,7 +605,7 @@ export default function ApplicationDetailPage() {
                                     <div className="p-2 bg-blue-500/10 rounded-xl">
                                         <User className="w-5 h-5 text-blue-400" />
                                     </div>
-                                    <h2 className="text-lg font-semibold text-white">{form.full_name}</h2>
+                                    <h2 className="text-lg font-semibold text-white">{formatFormDisplayName(form) || form.full_name || '—'}</h2>
                                 </div>
                                 <button
                                     onClick={() => setIsEditFormOpen(true)}
@@ -567,7 +653,7 @@ export default function ApplicationDetailPage() {
                                     </div>
                                     <div className="md:col-span-2 space-y-2">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Суроға</span>
-                                        <p className="text-slate-300 bg-white/5 p-3 rounded-xl border border-white/5">{form.detailed_address || '—'}</p>
+                                        <p className="text-slate-300 bg-white/5 p-3 rounded-xl border border-white/5 whitespace-pre-wrap">{form.detailed_address || '—'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -649,15 +735,19 @@ export default function ApplicationDetailPage() {
                                     </div>
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Кор / Касб</span>
-                                        <p className="text-white font-semibold mt-2">{poll.profession_jobs}</p>
+                                        <p className="text-white font-semibold mt-2 whitespace-pre-wrap">{poll.profession_jobs}</p>
                                     </div>
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5 md:col-span-2">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Мақсади кӯмак</span>
                                         <p className="text-white font-semibold mt-2">{poll.yarim_reason}</p>
                                     </div>
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5 md:col-span-2">
+                                        <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Ҷойи зист</span>
+                                        <p className="text-white font-semibold mt-2">{poll.place_of_residence || '—'}</p>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 md:col-span-2">
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Вазъи молиявӣ</span>
-                                        <p className="text-white font-semibold mt-2">{poll.financial_status}</p>
+                                        <p className="text-white font-semibold mt-2 whitespace-pre-wrap">{poll.financial_status}</p>
                                     </div>
                                 </div>
 
@@ -668,6 +758,7 @@ export default function ApplicationDetailPage() {
                                                 <tr>
                                                     <th className="px-4 py-3 text-left font-semibold">Ном</th>
                                                     <th className="px-4 py-3 text-left font-semibold">Шахс</th>
+                                                    <th className="px-4 py-3 text-left font-semibold">Вазъияти шахс</th>
                                                     <th className="px-4 py-3 text-left font-semibold">Санаи таваллуд</th>
                                                     <th className="px-4 py-3 text-left font-semibold">Касб</th>
                                                     <th className="px-4 py-3 text-left font-semibold">Маъоши моҳона</th>
@@ -678,8 +769,9 @@ export default function ApplicationDetailPage() {
                                                     <tr key={i} className="hover:bg-white/5 transition-colors">
                                                         <td className="px-4 py-3 text-white font-medium">{worker.name}</td>
                                                         <td className="px-4 py-3 text-slate-300">{worker.person}</td>
+                                                        <td className="px-4 py-3 text-slate-300">{worker.person_situation || '—'}</td>
                                                         <td className="px-4 py-3 text-slate-300">{worker.data_of_birth}</td>
-                                                        <td className="px-4 py-3 text-slate-300">{worker.job}</td>
+                                                        <td className="px-4 py-3 text-slate-300 whitespace-pre-wrap">{worker.job}</td>
                                                         <td className="px-4 py-3 text-slate-300">{worker.monthly_income}</td>
                                                     </tr>
                                                 ))}
@@ -697,27 +789,50 @@ export default function ApplicationDetailPage() {
                                     <div className="p-2 bg-blue-500/10 rounded-xl">
                                         <FileText className="w-5 h-5 text-blue-400" />
                                     </div>
-                                    <h2 className="text-lg font-semibold text-white">Documents & Photos</h2>
+                                    <h2 className="text-lg font-semibold text-white">Ҳуҷҷатҳо (Паспорт ва дигар)</h2>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                    {orderedDocuments.map((doc, idx) => (
+                                    {orderedDocuments.map((doc, idx) => {
+                                        const thumbRotKey = doc.id != null ? doc.id : `idx-${idx}`;
+                                        const thumbRotDeg = previewRotationByDocId[thumbRotKey] || 0;
+                                        return (
                                         <div
-                                            key={doc.id}
+                                            key={doc.id ?? idx}
                                             className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-blue-500/50 transition-all cursor-pointer shadow-md hover:shadow-xl"
                                             onClick={() => openDocPreview(idx)}
                                         >
+                                            {doc.id != null && (
+                                                <button
+                                                    type="button"
+                                                    title="Нест кардан"
+                                                    disabled={deletingDocumentId === doc.id}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteDocument(doc.id);
+                                                    }}
+                                                    className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-black/60 hover:bg-red-600/90 text-white border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                                >
+                                                    {deletingDocumentId === doc.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                            )}
                                             <img
                                                 src={doc.file_url}
                                                 alt={`Document ${idx + 1}`}
+                                                style={{ transform: `rotate(${thumbRotDeg}deg)` }}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center pointer-events-none">
                                                 <span className="text-white font-semibold text-xs px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
-                                                    View Full Size
+                                                    Намоиши пурра
                                                 </span>
                                             </div>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -863,7 +978,7 @@ export default function ApplicationDetailPage() {
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1">
                                                     <p className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">
-                                                        {rForm.full_name}
+                                                        {formatFormDisplayName(rForm) || rForm.full_name || '—'}
                                                     </p>
                                                     <p className="text-xs text-slate-500 mt-1 font-medium">
                                                         ID: <span className="text-blue-400">#{rForm.id}</span> • {new Date(rForm.created_at).toLocaleDateString()}
@@ -898,7 +1013,7 @@ export default function ApplicationDetailPage() {
                                             <div className="w-3 h-3 rounded-full bg-blue-500 mt-1.5 shrink-0" />
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-base font-semibold text-white">Ариза пешниҳод карда шуд</p>
-                                                <p className="text-slate-400 mt-1 text-sm">Ариза: {form.full_name || '—'}</p>
+                                                <p className="text-slate-400 mt-1 text-sm">Ариза: {formatFormDisplayName(form) || form.full_name || '—'}</p>
                                                 {form.created_by_username && (
                                                     <p className="text-slate-400 mt-1 text-sm">Эҷод карда шуд: {form.created_by_username}</p>
                                                 )}
@@ -949,7 +1064,11 @@ export default function ApplicationDetailPage() {
             </div>
 
             {/* Document Preview Modal */}
-            {selectedDocIndex !== null && orderedDocuments[selectedDocIndex] && (
+            {selectedDocIndex !== null && orderedDocuments[selectedDocIndex] && (() => {
+                const previewDoc = orderedDocuments[selectedDocIndex];
+                const previewRotKey = previewDoc.id != null ? previewDoc.id : `idx-${selectedDocIndex}`;
+                const previewRotDeg = previewRotationByDocId[previewRotKey] || 0;
+                return (
                 <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
                     <button
                         type="button"
@@ -970,23 +1089,59 @@ export default function ApplicationDetailPage() {
                     )}
 
                     <div className="w-full max-w-5xl">
-                        <img
-                            src={orderedDocuments[selectedDocIndex].file_url}
-                            alt={`Document ${selectedDocIndex + 1}`}
-                            className="w-full max-h-[78vh] object-contain rounded-xl"
-                        />
-                        <div className="mt-4 flex items-center justify-center gap-3 text-white">
+                        <div className="flex justify-center max-h-[78vh] overflow-hidden rounded-xl">
+                            <img
+                                src={previewDoc.file_url}
+                                alt={`Document ${selectedDocIndex + 1}`}
+                                style={{ transform: `rotate(${previewRotDeg}deg)` }}
+                                className="max-w-full max-h-[78vh] w-auto h-auto object-contain transition-transform duration-200"
+                            />
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-white">
                             <span className="text-sm text-slate-300">
                                 {selectedDocIndex + 1} / {orderedDocuments.length}
                             </span>
+                            <button
+                                type="button"
+                                onClick={() => rotatePreviewBy(-90)}
+                                className="text-sm p-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 inline-flex items-center gap-1.5"
+                                aria-label="Баргардонидани акс ба чап"
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                                <span className="hidden sm:inline">90°</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => rotatePreviewBy(90)}
+                                className="text-sm p-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 inline-flex items-center gap-1.5"
+                                aria-label="Баргардонидани акс ба рост"
+                            >
+                                <RotateCw className="w-4 h-4" />
+                                <span className="hidden sm:inline">90°</span>
+                            </button>
                             <a
-                                href={orderedDocuments[selectedDocIndex].file_url}
+                                href={previewDoc.file_url}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-sm px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
                             >
                                 Open Original
                             </a>
+                            {previewDoc.id != null && (
+                                <button
+                                    type="button"
+                                    disabled={deletingDocumentId === previewDoc.id}
+                                    onClick={() => handleDeleteDocument(previewDoc.id)}
+                                    className="text-sm px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/35 border border-red-500/40 text-red-200 inline-flex items-center gap-1.5 disabled:opacity-50"
+                                >
+                                    {deletingDocumentId === previewDoc.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                    )}
+                                    Нест
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -1000,7 +1155,8 @@ export default function ApplicationDetailPage() {
                         </button>
                     )}
                 </div>
-            )}
+                );
+            })()}
 
             {/* Modal: Yardım miktarı (under_review → to_accountant) */}
             {amountModalOpen && (

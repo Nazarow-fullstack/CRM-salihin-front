@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import api from '@/lib/axios';
+import { formatFormDisplayName } from '@/lib/formDisplayName';
 
 // --- CONFIGURATION ---
 const STATUS_CONFIG = {
@@ -63,6 +64,9 @@ export default function ApplicationsPage() {
     // New Application State
     const [formData, setFormData] = useState({
         full_name: '',
+        last_name: '',
+        first_name: '',
+        father_name: '',
         phone_number: '',
         application_purpose: '',
         address_region: '',
@@ -120,10 +124,11 @@ export default function ApplicationsPage() {
             'Музди маош',
             'Вазъи оилавӣ',
             'Мақсади кумак',
+            'Ҷойи зист',
         ];
         const poll = (f) => f.polls?.[0];
         const rows = filteredData.map(f => [
-            f.full_name ?? '',
+            formatFormDisplayName(f) || (f.full_name ?? ''),
             f.phone_number ?? '',
             f.application_purpose ?? '',
             f.created_at ? new Date(f.created_at).toLocaleDateString() : '',
@@ -137,6 +142,7 @@ export default function ApplicationsPage() {
             poll(f)?.monthly_income ?? '',
             poll(f)?.financial_status ?? '',
             poll(f)?.yarim_reason ?? '',
+            poll(f)?.place_of_residence ?? '',
         ]);
 
         const wsData = [headers, ...rows];
@@ -152,10 +158,17 @@ export default function ApplicationsPage() {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await api.post('/forms/', formData);
+            const payload = {
+                ...formData,
+                full_name: formData.full_name.trim() || null,
+            };
+            await api.post('/forms/', payload);
             setIsModalOpen(false);
             setFormData({
                 full_name: '',
+                last_name: '',
+                first_name: '',
+                father_name: '',
                 phone_number: '',
                 application_purpose: '',
                 address_region: '',
@@ -175,7 +188,12 @@ export default function ApplicationsPage() {
     const filteredData = useMemo(() => {
         return forms.filter(item => {
             const searchLower = search.toLowerCase();
-            const nameMatch = item.full_name?.toLowerCase().includes(searchLower);
+            const nameMatch =
+                formatFormDisplayName(item).toLowerCase().includes(searchLower) ||
+                item.full_name?.toLowerCase().includes(searchLower) ||
+                item.first_name?.toLowerCase().includes(searchLower) ||
+                item.last_name?.toLowerCase().includes(searchLower) ||
+                item.father_name?.toLowerCase().includes(searchLower);
             const phoneMatch = item.phone_number?.includes(searchLower);
             const statusMatch = statusFilter === 'all' || item.status === statusFilter;
             const regionMatch = regionFilter === 'all' || item.address_region === regionFilter;
@@ -327,7 +345,7 @@ export default function ApplicationsPage() {
                                     >
                                         <td className="px-6 py-4 font-medium text-slate-500">#{item.id}</td>
                                         <td className="px-6 py-4">
-                                            <div className="font-semibold text-slate-900 dark:text-slate-100">{item.full_name || 'Unknown'}</div>
+                                            <div className="font-semibold text-slate-900 dark:text-slate-100">{formatFormDisplayName(item) || item.full_name || 'Unknown'}</div>
                                             <div className="text-xs text-slate-500 dark:text-slate-400">{item.phone_number}</div>
                                         </td>
                                         <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{item.application_purpose || '-'}</td>
@@ -397,7 +415,7 @@ export default function ApplicationsPage() {
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg z-50"
+                            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl z-50"
                         >
                             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6">
                                 <div className="flex items-center justify-between mb-6">
@@ -410,10 +428,10 @@ export default function ApplicationsPage() {
                                 <form onSubmit={handleCreateSubmit} className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-slate-500 uppercase">Ном ва насаб</label>
+                                            <label className="text-xs font-medium text-slate-500 uppercase">Номи пурра</label>
                                             <input
                                                 type="text"
-                                                required
+                                                maxLength={255}
                                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                                 value={formData.full_name}
                                                 onChange={e => setFormData({ ...formData, full_name: e.target.value })}
@@ -427,6 +445,39 @@ export default function ApplicationsPage() {
                                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                                                 value={formData.phone_number}
                                                 onChange={e => setFormData({ ...formData, phone_number: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">Насаб</label>
+                                            <input
+                                                type="text"
+                                                maxLength={255}
+                                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                                value={formData.last_name}
+                                                onChange={e => setFormData({ ...formData, last_name: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">Ном</label>
+                                            <input
+                                                type="text"
+                                                maxLength={255}
+                                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                                value={formData.first_name}
+                                                onChange={e => setFormData({ ...formData, first_name: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-medium text-slate-500 uppercase">Номи падар</label>
+                                            <input
+                                                type="text"
+                                                maxLength={255}
+                                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                                value={formData.father_name}
+                                                onChange={e => setFormData({ ...formData, father_name: e.target.value })}
                                             />
                                         </div>
                                     </div>
@@ -458,9 +509,9 @@ export default function ApplicationsPage() {
 
                                     <div className="space-y-1">
                                         <label className="text-xs font-medium text-slate-500 uppercase">Суроғаи муфассал</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                                        <textarea
+                                            rows={3}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-y min-h-[4.5rem]"
                                             value={formData.detailed_address}
                                             onChange={e => setFormData({ ...formData, detailed_address: e.target.value })}
                                         />
@@ -469,8 +520,8 @@ export default function ApplicationsPage() {
                                     <div className="space-y-1">
                                         <label className="text-xs font-medium text-slate-500 uppercase">Матни ариза</label>
                                         <textarea
-                                            rows={3}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-none"
+                                            rows={4}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-y min-h-[5rem]"
                                             value={formData.description}
                                             onChange={e => setFormData({ ...formData, description: e.target.value })}
                                         />

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
+import { formatFormDisplayName } from '@/lib/formDisplayName';
 import { Card, CardContent } from '@/components/ui/card';
 
 // --- CONFIGURATION ---
@@ -88,7 +89,12 @@ export default function CommitteePage() {
     const filteredForms = useMemo(() => {
         return forms.filter(item => {
             const searchLower = search.toLowerCase();
-            const nameMatch = item.full_name?.toLowerCase().includes(searchLower);
+            const nameMatch =
+                formatFormDisplayName(item).toLowerCase().includes(searchLower) ||
+                item.full_name?.toLowerCase().includes(searchLower) ||
+                item.first_name?.toLowerCase().includes(searchLower) ||
+                item.last_name?.toLowerCase().includes(searchLower) ||
+                item.father_name?.toLowerCase().includes(searchLower);
             const phoneMatch = item.phone_number?.includes(searchLower);
             const regionMatch = regionFilter === 'all' || item.address_region === regionFilter;
 
@@ -298,7 +304,7 @@ export default function CommitteePage() {
                                                             </div>
                                                             <div>
                                                                 <p className="text-white font-medium group-hover:text-purple-400 transition-colors">
-                                                                    {item.full_name || 'Номаълум'}
+                                                                    {formatFormDisplayName(item) || item.full_name || 'Номаълум'}
                                                                 </p>
                                                                 <p className="text-xs text-slate-500">{item.phone_number}</p>
                                                             </div>

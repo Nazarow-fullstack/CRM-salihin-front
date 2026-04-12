@@ -34,6 +34,20 @@ export default function Header({ setIsSidebarOpen }) {
         router.push('/login');
     };
 
+    const handleNotificationClick = (notif) => {
+        let formId = notif.formId;
+        if (formId == null && typeof notif.id === 'number') formId = notif.id;
+        if (formId == null && typeof notif.id === 'string' && notif.id.startsWith('form-')) {
+            formId = Number(notif.id.slice(5));
+        }
+        if (formId == null || Number.isNaN(formId)) return;
+        if (notif.kind === 'note') {
+            router.push(`/dashboard/applications/${formId}?openPoll=1`);
+            return;
+        }
+        router.push(`/dashboard/applications/${formId}`);
+    };
+
     return (
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#0f172a]/80 px-6 backdrop-blur-md shadow-sm">
             <div className="flex items-center gap-4">
@@ -87,7 +101,19 @@ export default function Header({ setIsSidebarOpen }) {
                             <div className="max-h-[300px] overflow-y-auto">
                                 {notifications.length > 0 ? (
                                     notifications.map((notif) => (
-                                        <div key={notif.id} className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-100 dark:border-white/5 last:border-0 cursor-pointer">
+                                        <div
+                                            key={notif.id}
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => handleNotificationClick(notif)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    handleNotificationClick(notif);
+                                                }
+                                            }}
+                                            className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-100 dark:border-white/5 last:border-0 cursor-pointer"
+                                        >
                                             <div className="flex justify-between items-start mb-1">
                                                 <h4 className="text-sm font-medium text-slate-700 dark:text-slate-200">{notif.title}</h4>
                                                 <span className="text-[10px] text-slate-500">{notif.time}</span>

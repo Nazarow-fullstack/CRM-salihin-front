@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
+import { formatFormDisplayName } from '@/lib/formDisplayName';
 
 // --- CONFIGURATION ---
 const STATUS_CONFIG = {
@@ -58,7 +59,7 @@ export default function FamiliesPage() {
         const unique = [];
         const seen = new Set();
         forms.forEach(fam => {
-            const name = (fam.full_name || '').toLowerCase().trim();
+            const name = (formatFormDisplayName(fam) || fam.full_name || '').toLowerCase().trim();
             const phone = (fam.phone_number || '').replace(/\s+/g, '').trim();
             const key = name + '|' + phone;
             if (!seen.has(key)) {
@@ -74,7 +75,10 @@ export default function FamiliesPage() {
         return uniqueFamilies.filter(f => {
             const searchLower = search.toLowerCase();
             return (
-                (f.full_name || '').toLowerCase().includes(searchLower) ||
+                (formatFormDisplayName(f) || f.full_name || '').toLowerCase().includes(searchLower) ||
+                (f.first_name || '').toLowerCase().includes(searchLower) ||
+                (f.last_name || '').toLowerCase().includes(searchLower) ||
+                (f.father_name || '').toLowerCase().includes(searchLower) ||
                 (f.phone_number || '').includes(searchLower) ||
                 (f.application_purpose || '').toLowerCase().includes(searchLower)
             );
@@ -193,7 +197,7 @@ export default function FamiliesPage() {
                                                         </div>
                                                         <div>
                                                             <p className="text-white font-semibold group-hover:text-blue-400 transition-colors">
-                                                                {family.full_name || '—'}
+                                                                {formatFormDisplayName(family) || family.full_name || '—'}
                                                             </p>
                                                             <p className="text-xs text-slate-500 mt-0.5">
                                                                 {family.phone_number || '—'}
