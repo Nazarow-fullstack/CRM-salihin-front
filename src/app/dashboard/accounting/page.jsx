@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     DollarSign,
@@ -38,6 +38,7 @@ const escapeHtml = (text) => {
 
 export default function AccountingPage() {
     const router = useRouter();
+    const didInitialFetchRef = useRef(false);
 
     // --- State ---
     const [forms, setForms] = useState([]);
@@ -71,9 +72,7 @@ export default function AccountingPage() {
         setLoading(true);
         try {
             const [all, statsRes] = await Promise.all([
-                fetchAllFormsPagesWithParams(api, {
-                    status__in: ['to_accountant', 'approved'],
-                }),
+                fetchAllFormsPagesWithParams(api, { status__in: 'to_accountant,approved' }),
                 getStats().catch(() => null),
             ]);
             setForms(Array.isArray(all) ? all : []);
@@ -86,6 +85,9 @@ export default function AccountingPage() {
     }, []);
 
     useEffect(() => {
+        // Dev StrictMode-da eyni API sorğuları iki dəfə getməsin.
+        if (didInitialFetchRef.current) return;
+        didInitialFetchRef.current = true;
         fetchData();
     }, [fetchData]);
 
