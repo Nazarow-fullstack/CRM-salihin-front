@@ -38,17 +38,24 @@ api.interceptors.response.use(
 
 // --- API Functions ---
 
+/** DRF pagination: { results, count } — köhnə düz massiv dəstəklənir */
+function normalizeFormsListResponse(data) {
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.results)) return data.results;
+    return [];
+}
+
 export const getForms = async (params = {}) => {
     const cacheKey = '/forms/';
     const cachedData = getCachedData(cacheKey, params);
     if (cachedData) {
-        return { data: cachedData };
+        return { data: normalizeFormsListResponse(cachedData) };
     }
 
     const response = await api.get('/forms/', { params });
-
-    setCachedData(cacheKey, params, response.data);
-    return response;
+    const list = normalizeFormsListResponse(response.data);
+    setCachedData(cacheKey, params, list);
+    return { ...response, data: list };
 };
 
 export const getForm = (id) => api.get(`/forms/${id}/`);

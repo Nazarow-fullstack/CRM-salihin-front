@@ -79,14 +79,18 @@ export default function FamilyDetailPage() {
         const fetchData = async () => {
             setLoading(true);
             try {
-                // Fetch single form
                 const formRes = await api.get(`/forms/${id}/`);
                 setFamily(formRes.data);
-                console.log(formRes.data);
 
-                // Fetch all forms to find same-name applications
-                const allRes = await api.get('/forms/');
-                setAllForms(allRes.data);
+                const relatedRes = await api.get(`/forms/${id}/related_forms/`).catch(() => ({ data: [] }));
+                const relRaw = relatedRes.data;
+                const relatedList = Array.isArray(relRaw) ? relRaw : relRaw?.results ?? [];
+                const byId = new Map();
+                for (const f of relatedList) {
+                    if (f?.id != null) byId.set(f.id, f);
+                }
+                byId.set(formRes.data.id, formRes.data);
+                setAllForms(Array.from(byId.values()));
             } catch (err) {
                 console.error('Failed to fetch family data:', err);
                 setError('Маълумот гирифта нашуд');

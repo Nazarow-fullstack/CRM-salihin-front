@@ -16,8 +16,10 @@ import {
     Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getForms, createPayment } from '@/services/api';
+import api from '@/lib/axios';
+import { createPayment } from '@/services/api';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
+import { fetchAllFormsPagesWithParams } from '@/lib/formsListApi';
 
 // --- UTILS ---
 const formatDate = (dateString) => {
@@ -63,14 +65,14 @@ export default function AccountingPage() {
         setCurrentPage(1);
     }, [tabValue, search, dateFilter]);
 
-    // --- Data Fetching ---
+    // --- Data Fetching (ҳамаи саҳифаҳоро — на танҳо 10-тои аввал) ---
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await getForms({
-                'status__in': ['to_accountant', 'approved']
+            const all = await fetchAllFormsPagesWithParams(api, {
+                status__in: ['to_accountant', 'approved'],
             });
-            setForms(response.data);
+            setForms(Array.isArray(all) ? all : []);
         } catch (error) {
             console.error("Failed to fetch accounting data", error);
         } finally {

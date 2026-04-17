@@ -16,6 +16,7 @@ import useAuthStore from '@/store/useAuthStore';
 import api from '@/lib/axios';
 import { EditFormDialog, EditPollDialog } from '@/components/EditDialogs';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
+import { FORMS_PAGE_SIZE } from '@/lib/formsListApi';
 
 // Status Constants
 const STATUS_LABELS = {
@@ -246,6 +247,7 @@ export default function ApplicationDetailPage() {
     const [history, setHistory] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(true);
     const [relatedForms, setRelatedForms] = useState([]);
+    const [relatedVisibleCount, setRelatedVisibleCount] = useState(FORMS_PAGE_SIZE);
     const [poll, setPoll] = useState(null);
 
     // Notes
@@ -320,6 +322,7 @@ export default function ApplicationDetailPage() {
             );
             const relRaw = relatedRes.data;
             setRelatedForms(Array.isArray(relRaw) ? relRaw : relRaw?.results ?? []);
+            setRelatedVisibleCount(FORMS_PAGE_SIZE);
         } catch (err) {
             console.error(err);
             if (!isStale()) {
@@ -969,7 +972,7 @@ export default function ApplicationDetailPage() {
                                     Муроҷиатҳо ({relatedForms.length})
                                 </h2>
                                 <div className="space-y-3">
-                                    {relatedForms.map(rForm => (
+                                    {relatedForms.slice(0, relatedVisibleCount).map(rForm => (
                                         <Link
                                             key={rForm.id}
                                             href={`/dashboard/applications/${rForm.id}`}
@@ -993,6 +996,15 @@ export default function ApplicationDetailPage() {
                                         </Link>
                                     ))}
                                 </div>
+                                {relatedVisibleCount < relatedForms.length && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setRelatedVisibleCount((c) => Math.min(c + FORMS_PAGE_SIZE, relatedForms.length))}
+                                        className="mt-4 w-full py-2.5 rounded-xl text-sm font-medium border border-blue-500/30 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition-colors"
+                                    >
+                                        Ҳоли дигар {FORMS_PAGE_SIZE} та ({relatedForms.length - relatedVisibleCount} мондааст)
+                                    </button>
+                                )}
                             </div>
                         )}
 

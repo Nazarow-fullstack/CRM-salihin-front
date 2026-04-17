@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
+import { fetchAllFormsPages } from '@/lib/formsListApi';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -46,10 +47,9 @@ export default function CommitteePage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // 1. Fetch Forms
-            const response = await api.get('/forms/', { params: { status: 'under_review' } });
-            const formsData = response.data;
-            setForms(formsData);
+            // 1. Bütün səhifələr — server pagination yalnız 10 sətir qaytarır
+            const formsData = await fetchAllFormsPages(api, { status: 'under_review' });
+            setForms(Array.isArray(formsData) ? formsData : []);
 
             // 2. Fetch Polls for Reasons (Parallel)
             if (formsData.length > 0) {

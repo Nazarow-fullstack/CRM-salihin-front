@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
     Search,
     Plus,
     Download,
+    ChevronLeft,
     ChevronRight,
     X,
     Loader2,
@@ -15,6 +16,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import api from '@/lib/axios';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
+import {
+    FORMS_PAGE_SIZE,
+    parseFormsListPayload,
+    buildFormsListQuery,
+    fetchAllFormsPages,
+} from '@/lib/formsListApi';
 
 // --- CONFIGURATION ---
 const STATUS_CONFIG = {
@@ -40,24 +47,52 @@ const YARIM_REASON_OPTIONS = [
     { value: 'Дастгирии тиҷорат', label: 'Дастгирии тиҷорат' },
     { value: 'Ниёзи аввали', label: 'Ниёзи аввали' },
 ];
-const ITEMS_PER_PAGE = 10;
+function formMatchesFilters(item, { search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter }) {
+    const searchLower = search.toLowerCase();
+    const nameMatch =
+        formatFormDisplayName(item).toLowerCase().includes(searchLower) ||
+        item.full_name?.toLowerCase().includes(searchLower) ||
+        item.first_name?.toLowerCase().includes(searchLower) ||
+        item.last_name?.toLowerCase().includes(searchLower) ||
+        item.father_name?.toLowerCase().includes(searchLower);
+    const phoneMatch = item.phone_number?.includes(searchLower);
+    const statusMatch = statusFilter === 'all' || item.status === statusFilter;
+    const regionMatch = regionFilter === 'all' || item.address_region === regionFilter;
+    const purposeMatch = purposeFilter === 'all' || item.application_purpose === purposeFilter;
+    const yarimMatch = yarimReasonFilter === 'all' || item.polls?.[0]?.yarim_reason === yarimReasonFilter;
+    return (nameMatch || phoneMatch) && statusMatch && regionMatch && purposeMatch && yarimMatch;
+}
 
 export default function ApplicationsPage() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const [forms, setForms] = useState([]);
+    const [dataMode, setDataMode] = useState('server');
+    const [accumulatedForms, setAccumulatedForms] = useState([]);
+    const [plainFullList, setPlainFullList] = useState([]);
+    /** Сервер ҳамеша ҳамаи рӯйхатро як JSON мефиристад — як бор гиред, дар UI 10-10 намоиш диҳед */
+    const [bulkForms, setBulkForms] = useState(null);
+    const [listTotal, setListTotal] = useState(0);
+    /** count бевосита аз API; агар набошад, саҳифабандӣ танҳо аз `hasNext` */
+    const [listTotalExact, setListTotalExact] = useState(true);
+    const [listHasNext, setListHasNext] = useState(false);
+    const [listPage, setListPage] = useState(() => {
+        const p = Number(searchParams.get('page'));
+        return Number.isFinite(p) && p >= 1 ? p : 1;
+    });
+    const [refreshKey, setRefreshKey] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [exportLoading, setExportLoading] = useState(false);
 
     // Filters
     const [search, setSearch] = useState(() => searchParams.get('search') || '');
+    const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') || '');
     const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
     const [regionFilter, setRegionFilter] = useState(() => searchParams.get('region') || 'all');
     const [purposeFilter, setPurposeFilter] = useState(() => searchParams.get('purpose') || 'all');
     const [yarimReasonFilter, setYarimReasonFilter] = useState(() => searchParams.get('yarim_reason') || 'all');
 
-    // Pagination & Modal
-    const [page, setPage] = useState(() => Number(searchParams.get('page')) || 1);
+    // Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -74,22 +109,94 @@ export default function ApplicationsPage() {
         description: ''
     });
 
-    // 1. DATA FETCHING
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const response = await api.get('/forms/');
-            setForms(response.data);
-        } catch (error) {
-            console.error("Failed to fetch forms", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(search), 350);
+        return () => clearTimeout(t);
+    }, [search]);
+
+    const listFilterArgs = useMemo(
+        () => ({
+            status: statusFilter,
+            region: regionFilter,
+            purpose: purposeFilter,
+            search: debouncedSearch,
+        }),
+        [statusFilter, regionFilter, purposeFilter, debouncedSearch]
+    );
+
+    const listFilterKey = useMemo(() => JSON.stringify(listFilterArgs), [listFilterArgs]);
+
+    const prevListFilterKeyForFetchRef = useRef(null);
+    const bulkDataFilterKeyRef = useRef('');
+    const bulkFormsRef = useRef(null);
+    bulkFormsRef.current = bulkForms;
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        const filterKey = `${listFilterKey}|${refreshKey}`;
+        const fkChanged =
+            prevListFilterKeyForFetchRef.current != null &&
+            prevListFilterKeyForFetchRef.current !== listFilterKey;
+        prevListFilterKeyForFetchRef.current = listFilterKey;
+
+        const pageToLoad = fkChanged ? 1 : listPage;
+        if (fkChanged && listPage !== 1) {
+            setListPage(1);
+        }
+
+        if (
+            bulkFormsRef.current != null &&
+            bulkDataFilterKeyRef.current === filterKey &&
+            !fkChanged
+        ) {
+            return;
+        }
+
+        const ac = new AbortController();
+        setLoading(true);
+        setListTotal(0);
+        setListTotalExact(true);
+        setListHasNext(false);
+        setBulkForms(null);
+        setPlainFullList([]);
+        setAccumulatedForms([]);
+
+        (async () => {
+            try {
+                const params = buildFormsListQuery(pageToLoad, listFilterArgs);
+                const response = await api.get('/forms/', { params, signal: ac.signal });
+                const parsed = parseFormsListPayload(response.data);
+                if (parsed.bulkLocalPaging && parsed.bulkDataset) {
+                    bulkDataFilterKeyRef.current = filterKey;
+                    setDataMode('server');
+                    setBulkForms(parsed.bulkDataset);
+                    setListTotal(parsed.total);
+                    setListTotalExact(true);
+                    setListHasNext(false);
+                } else if (parsed.isPlainArray) {
+                    bulkDataFilterKeyRef.current = '';
+                    setDataMode('plain');
+                    setPlainFullList(parsed.items);
+                    setListTotal(parsed.items.length);
+                    setListTotalExact(true);
+                    setListHasNext(false);
+                } else {
+                    bulkDataFilterKeyRef.current = '';
+                    setDataMode('server');
+                    setAccumulatedForms(parsed.items);
+                    setListTotal(parsed.total);
+                    setListTotalExact(parsed.totalExact !== false);
+                    setListHasNext(Boolean(parsed.hasNext ?? parsed.next));
+                }
+            } catch (error) {
+                if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') return;
+                console.error('Failed to fetch forms', error);
+            } finally {
+                if (!ac.signal.aborted) setLoading(false);
+            }
+        })();
+
+        return () => ac.abort();
+    }, [listFilterKey, listPage, refreshKey, listFilterArgs]);
 
     useEffect(() => {
         const params = new URLSearchParams();
@@ -99,58 +206,80 @@ export default function ApplicationsPage() {
         if (regionFilter !== 'all') params.set('region', regionFilter);
         if (purposeFilter !== 'all') params.set('purpose', purposeFilter);
         if (yarimReasonFilter !== 'all') params.set('yarim_reason', yarimReasonFilter);
-        if (page > 1) params.set('page', String(page));
+        if (listPage > 1) params.set('page', String(listPage));
 
         const query = params.toString();
         router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-    }, [search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter, page, pathname, router]);
+    }, [search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter, listPage, pathname, router]);
 
     // 2. EXPORT LOGIC (Excel - filtered data)
-    const handleExport = () => {
-        if (filteredData.length === 0) return;
+    const handleExport = async () => {
+        setExportLoading(true);
+        try {
+            const all = await fetchAllFormsPages(api, {
+                status: statusFilter,
+                region: regionFilter,
+                purpose: purposeFilter,
+                search,
+            });
+            const rows = all.filter((item) =>
+                formMatchesFilters(item, {
+                    search,
+                    statusFilter,
+                    regionFilter,
+                    purposeFilter,
+                    yarimReasonFilter,
+                })
+            );
+            if (rows.length === 0) return;
 
-        const headers = [
-            'Фио',
-            'Номер телефон',
-            'Мақсади ариза',
-            'Санаи воридшуда',
-            'Минтақа',
-            'Суроға',
-            'Матни ариза',
-            'Статус (вазъият)',
-            'Аъзои оила',
-            'Санаи таваллуд',
-            'Ҷойи кор',
-            'Музди маош',
-            'Вазъи оилавӣ',
-            'Мақсади кумак',
-            'Ҷойи зист',
-        ];
-        const poll = (f) => f.polls?.[0];
-        const rows = filteredData.map(f => [
-            formatFormDisplayName(f) || (f.full_name ?? ''),
-            f.phone_number ?? '',
-            f.application_purpose ?? '',
-            f.created_at ? new Date(f.created_at).toLocaleDateString() : '',
-            f.address_region ?? '',
-            f.detailed_address ?? '',
-            f.description ?? '',
-            STATUS_CONFIG[f.status]?.label ?? f.status ?? '',
-            poll(f)?.family_members ?? '',
-            poll(f)?.data_of_birth ? new Date(poll(f).data_of_birth).toLocaleDateString() : '',
-            poll(f)?.profession_jobs ?? '',
-            poll(f)?.monthly_income ?? '',
-            poll(f)?.financial_status ?? '',
-            poll(f)?.yarim_reason ?? '',
-            poll(f)?.place_of_residence ?? '',
-        ]);
+            const headers = [
+                'Фио',
+                'Номер телефон',
+                'Мақсади ариза',
+                'Санаи воридшуда',
+                'Минтақа',
+                'Суроға',
+                'Матни ариза',
+                'Статус (вазъият)',
+                'Аъзои оила',
+                'Санаи таваллуд',
+                'Ҷойи кор',
+                'Музди маош',
+                'Вазъи оилавӣ',
+                'Мақсади кумак',
+                'Ҷойи зист',
+            ];
+            const poll = (f) => f.polls?.[0];
+            const excelRows = rows.map((f) => [
+                formatFormDisplayName(f) || (f.full_name ?? ''),
+                f.phone_number ?? '',
+                f.application_purpose ?? '',
+                f.created_at ? new Date(f.created_at).toLocaleDateString() : '',
+                f.address_region ?? '',
+                f.detailed_address ?? '',
+                f.description ?? '',
+                STATUS_CONFIG[f.status]?.label ?? f.status ?? '',
+                poll(f)?.family_members ?? '',
+                poll(f)?.data_of_birth ? new Date(poll(f).data_of_birth).toLocaleDateString() : '',
+                poll(f)?.profession_jobs ?? '',
+                poll(f)?.monthly_income ?? '',
+                poll(f)?.financial_status ?? '',
+                poll(f)?.yarim_reason ?? '',
+                poll(f)?.place_of_residence ?? '',
+            ]);
 
-        const wsData = [headers, ...rows];
-        const ws = XLSX.utils.aoa_to_sheet(wsData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Дархостҳо');
-        const fileName = `applications_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        XLSX.writeFile(wb, fileName);
+            const wsData = [headers, ...excelRows];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Дархостҳо');
+            const fileName = `applications_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        } catch (error) {
+            console.error('Export failed', error);
+        } finally {
+            setExportLoading(false);
+        }
     };
 
     // 3. CREATE APPLICATION LOGIC
@@ -175,7 +304,8 @@ export default function ApplicationsPage() {
                 detailed_address: '',
                 description: ''
             });
-            fetchData(); // Refresh list
+            setListPage(1);
+            setRefreshKey((k) => k + 1);
         } catch (error) {
             console.error("Failed to create application", error);
             alert("Error creating application. Please check the fields.");
@@ -184,33 +314,60 @@ export default function ApplicationsPage() {
         }
     };
 
-    // 4. FILTERING LOGIC
+    const listSource = bulkForms ?? (dataMode === 'plain' ? plainFullList : accumulatedForms);
+
     const filteredData = useMemo(() => {
-        return forms.filter(item => {
-            const searchLower = search.toLowerCase();
-            const nameMatch =
-                formatFormDisplayName(item).toLowerCase().includes(searchLower) ||
-                item.full_name?.toLowerCase().includes(searchLower) ||
-                item.first_name?.toLowerCase().includes(searchLower) ||
-                item.last_name?.toLowerCase().includes(searchLower) ||
-                item.father_name?.toLowerCase().includes(searchLower);
-            const phoneMatch = item.phone_number?.includes(searchLower);
-            const statusMatch = statusFilter === 'all' || item.status === statusFilter;
-            const regionMatch = regionFilter === 'all' || item.address_region === regionFilter;
-            const purposeMatch = purposeFilter === 'all' || item.application_purpose === purposeFilter;
-            const yarimMatch = yarimReasonFilter === 'all' || item.polls?.[0]?.yarim_reason === yarimReasonFilter;
+        return listSource.filter((item) =>
+            formMatchesFilters(item, {
+                search,
+                statusFilter,
+                regionFilter,
+                purposeFilter,
+                yarimReasonFilter,
+            })
+        );
+    }, [listSource, search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter]);
 
-            return (nameMatch || phoneMatch) && statusMatch && regionMatch && purposeMatch && yarimMatch;
-        });
-    }, [forms, search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter]);
+    const sliceClientSide = bulkForms != null || dataMode === 'plain';
 
-    // 5. PAGINATION LOGIC
-    const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-    const paginatedData = filteredData.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+    const totalForPaging = useMemo(() => {
+        if (sliceClientSide) return filteredData.length;
+        return listTotal;
+    }, [sliceClientSide, filteredData.length, listTotal]);
+
+    const totalPages = useMemo(() => {
+        if (sliceClientSide) {
+            return Math.max(1, Math.ceil(totalForPaging / FORMS_PAGE_SIZE));
+        }
+        if (listTotalExact && listTotal > 0) {
+            return Math.max(1, Math.ceil(listTotal / FORMS_PAGE_SIZE));
+        }
+        return Math.max(1, listHasNext ? listPage + 1 : listPage);
+    }, [
+        sliceClientSide,
+        totalForPaging,
+        listTotal,
+        listTotalExact,
+        listHasNext,
+        listPage,
+    ]);
+
+    const displayRows = useMemo(() => {
+        if (sliceClientSide) {
+            const start = (listPage - 1) * FORMS_PAGE_SIZE;
+            return filteredData.slice(start, start + FORMS_PAGE_SIZE);
+        }
+        return filteredData;
+    }, [sliceClientSide, filteredData, listPage]);
+
+    const canGoPrev = listPage > 1;
+    const canGoNext = listPage < totalPages;
 
     useEffect(() => {
-        setPage(1);
-    }, [search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter]);
+        if (!listTotalExact || listTotal <= 0) return;
+        const tp = Math.max(1, Math.ceil(listTotal / FORMS_PAGE_SIZE));
+        if (listPage > tp) setListPage(tp);
+    }, [listPage, listTotal, listTotalExact]);
 
     const handleRowNavigation = (event, itemId) => {
         const href = `/dashboard/applications/${itemId}`;
@@ -238,14 +395,22 @@ export default function ApplicationsPage() {
                 </div>
                 <div className="flex gap-2">
                     <button
+                        type="button"
                         onClick={handleExport}
-                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                        disabled={exportLoading || loading}
+                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
                     >
-                        <Download className="w-4 h-4" /> Export
+                        {exportLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <Download className="w-4 h-4" />
+                        )}{' '}
+                        Export
                     </button>
                     <button
+                        type="button"
                         onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-purple-500/20 transition-all hover:scale-[1.02]"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity"
                     >
                         <Plus className="w-4 h-4" /> Дархости Нав
                     </button>
@@ -324,14 +489,14 @@ export default function ApplicationsPage() {
                                         <Loader2 className="w-8 h-8 animate-spin mx-auto text-purple-500" />
                                     </td>
                                 </tr>
-                            ) : paginatedData.length === 0 ? (
+                            ) : displayRows.length === 0 ? (
                                 <tr>
                                     <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
                                      Приложения, соответствующие вашим фильтрам, не найдены.
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedData.map((item) => (
+                                displayRows.map((item) => (
                                     <tr
                                         key={item.id}
                                         onClick={(e) => handleRowNavigation(e, item.id)}
@@ -374,28 +539,46 @@ export default function ApplicationsPage() {
                     </table>
                 </div>
 
-                {/* PAGINATION */}
-                {filteredData.length > 0 && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                {(filteredData.length > 0 || listTotal > 0) && (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                         <div className="text-sm text-slate-500">
-                            Showing <span className="font-medium text-slate-900 dark:text-slate-100">{(page - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium text-slate-900 dark:text-slate-100">{Math.min(page * ITEMS_PER_PAGE, filteredData.length)}</span> of <span className="font-medium text-slate-900 dark:text-slate-100">{filteredData.length}</span> results
+                            Саҳифа{' '}
+                            <span className="font-medium text-slate-900 dark:text-slate-100">{listPage}</span>
+                            {' / '}
+                            <span className="font-medium text-slate-900 dark:text-slate-100">{totalPages}</span>
+                            {sliceClientSide ? (
+                                <>
+                                    {' '}
+                                    — филтр:{' '}
+                                    <span className="font-medium text-slate-900 dark:text-slate-100">{filteredData.length}</span>
+                                </>
+                            ) : listTotal ? (
+                                <>
+                                    {' '}
+                                    — ҷамъ: <span className="font-medium text-slate-900 dark:text-slate-100">{listTotal}</span>
+                                </>
+                            ) : null}
                         </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                                className="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-50 hover:bg-white dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-300"
-                            >
-                                Previous
-                            </button>
-                            <button
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                disabled={page === totalPages}
-                                className="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-50 hover:bg-white dark:hover:bg-slate-800 transition-colors text-slate-700 dark:text-slate-300"
-                            >
-                                Next
-                            </button>
-                        </div>
+                        {totalPages > 1 && (
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                                    disabled={!canGoPrev || loading}
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4" /> Қаблӣ
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setListPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={!canGoNext || loading}
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                                >
+                                    Баъдӣ <ChevronRight className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -409,7 +592,7 @@ export default function ApplicationsPage() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsModalOpen(false)}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                            className="fixed inset-0 z-50"
                         />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
