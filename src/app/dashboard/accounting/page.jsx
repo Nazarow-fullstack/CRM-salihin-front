@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
 import { createPayment, getStats } from '@/services/api';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
-import { fetchAllFormsPagesWithParams } from '@/lib/formsListApi';
+import { FORMS_BULK_FETCH_PAGE_SIZE, parseFormsListPayload } from '@/lib/formsListApi';
 
 // --- UTILS ---
 const formatDate = (dateString) => {
@@ -71,16 +71,47 @@ export default function AccountingPage() {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [all, statsRes] = await Promise.all([
-                fetchAllFormsPagesWithParams(api, { status__in: 'to_accountant,approved' }),
+            const [firstRes, statsRes] = await Promise.all([
+                api.get('/forms/', {
+                    params: {
+                        status__in: 'to_accountant,approved',
+                        page: 1,
+                        page_size: FORMS_BULK_FETCH_PAGE_SIZE,
+                    },
+                }),
                 getStats().catch(() => null),
             ]);
-            setForms(Array.isArray(all) ? all : []);
+
+            let firstParsed = parseFormsListPayload(firstRes.data);
+            const initialRows = firstParsed.bulkLocalPaging && firstParsed.bulkDataset
+                ? firstParsed.bulkDataset
+                : firstParsed.items;
+
+            setForms(Array.isArray(initialRows) ? initialRows : []);
             setStatsFromApi(statsRes?.data ?? null);
+
+            // İlk data gəldikdən sonra spinner dayansın; qalan səhifələr arxa planda yüklənsin.
+            setLoading(false);
+
+            if (firstParsed.bulkLocalPaging || firstParsed.isPlainArray || !firstParsed.next) return;
+
+            const merged = Array.isArray(initialRows) ? [...initialRows] : [];
+            let next = firstParsed.next;
+            let guard = 0;
+            while (next && guard++ < 250) {
+                const res = await api.get(next);
+                firstParsed = parseFormsListPayload(res.data);
+                if (Array.isArray(firstParsed.items) && firstParsed.items.length > 0) {
+                    merged.push(...firstParsed.items);
+                    setForms([...merged]);
+                }
+                next = firstParsed.next;
+            }
         } catch (error) {
             console.error("Failed to fetch accounting data", error);
-        } finally {
             setLoading(false);
+        } finally {
+            // loading yuxarıda erkən söndürülür; burada yenidən dəyişməyə ehtiyac yoxdur.
         }
     }, []);
 
