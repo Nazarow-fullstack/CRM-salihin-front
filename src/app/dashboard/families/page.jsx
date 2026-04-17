@@ -11,7 +11,7 @@ import {
     UserCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '@/lib/axios';
+import { getForms } from '@/services/api';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
 
 // --- CONFIGURATION ---
@@ -41,8 +41,8 @@ export default function FamiliesPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/forms/');
-            setForms(response.data);
+            const response = await getForms();
+            setForms(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Failed to fetch forms", error);
         } finally {

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* next-themes `html.dark` — Tailwind v4 default `dark:` yalnız OS prefers-color-scheme üçündür */
+@custom-variant dark (&:where(.dark, .dark *));
+
 html {
   color-scheme: light;
 }

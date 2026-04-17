@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
-import { createPayment } from '@/services/api';
+import { createPayment, getStats } from '@/services/api';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
 import { fetchAllFormsPagesWithParams } from '@/lib/formsListApi';
 
@@ -59,6 +59,7 @@ export default function AccountingPage() {
         comment: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [statsFromApi, setStatsFromApi] = useState(null);
 
     // Reset pagination when filters change
     useEffect(() => {
@@ -69,10 +70,14 @@ export default function AccountingPage() {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const all = await fetchAllFormsPagesWithParams(api, {
-                status__in: ['to_accountant', 'approved'],
-            });
+            const [all, statsRes] = await Promise.all([
+                fetchAllFormsPagesWithParams(api, {
+                    status__in: ['to_accountant', 'approved'],
+                }),
+                getStats().catch(() => null),
+            ]);
             setForms(Array.isArray(all) ? all : []);
+            setStatsFromApi(statsRes?.data ?? null);
         } catch (error) {
             console.error("Failed to fetch accounting data", error);
         } finally {
@@ -275,13 +280,26 @@ export default function AccountingPage() {
         );
     }
 
-    // Calculations for stats
-    const totalForms = forms.length;
-    const paidForms = forms.filter(f => f.payment?.payment_status === 'paid').length;
-    const totalAmount = forms.reduce((sum, f) => sum + (parseFloat(f.aidmounts?.[0]?.amount) || 0), 0);
-    const paidAmount = forms
-        .filter(f => f.payment?.payment_status === 'paid')
-        .reduce((sum, f) => sum + (parseFloat(f.aidmounts?.[0]?.amount) || 0), 0);
+    // GET /stats/ → data.accounting (to_accountant | approved); yoxdursa cədvəl üzərindən fallback
+    const approvedSum = (f) => {
+        const a = parseFloat(f.approved_amount ?? f.aidmounts?.[0]?.amount ?? 0);
+        return Number.isFinite(a) ? a : 0;
+    };
+    const localTotalForms = forms.length;
+    const localPaidForms = forms.filter((f) => f.payment?.payment_status === 'paid').length;
+    const localTotalAmount = forms.reduce((sum, f) => sum + approvedSum(f), 0);
+    const localPaidAmount = forms
+        .filter((f) => f.payment?.payment_status === 'paid')
+        .reduce((sum, f) => sum + approvedSum(f), 0);
+
+    const acc = statsFromApi?.accounting;
+    const fromApi = acc != null && typeof acc === 'object';
+    const orFallback = (v, fb) => (Number.isFinite(Number(v)) ? Number(v) : fb);
+
+    const totalForms = fromApi ? orFallback(acc.total_forms, localTotalForms) : localTotalForms;
+    const paidForms = fromApi ? orFallback(acc.paid_forms, localPaidForms) : localPaidForms;
+    const totalAmount = fromApi ? orFallback(acc.total_amount, localTotalAmount) : localTotalAmount;
+    const paidAmount = fromApi ? orFallback(acc.paid_amount, localPaidAmount) : localPaidAmount;
 
     return (
         <div className="min-h-screen p-4 md:p-6 lg:p-8">
