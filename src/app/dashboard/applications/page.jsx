@@ -47,6 +47,19 @@ const YARIM_REASON_OPTIONS = [
     { value: 'Дастгирии тиҷорат', label: 'Дастгирии тиҷорат' },
     { value: 'Ниёзи аввали', label: 'Ниёзи аввали' },
 ];
+
+/** Рӯйхат API гоҳ `status`, гоҳ `status_code` / ғ. мефиристад — бо ключҳои филтр яксон кунед */
+function getFormListItemStatusKey(item) {
+    const raw =
+        item?.status ??
+        item?.status_code ??
+        item?.form_status ??
+        item?.application_status ??
+        item?.state;
+    if (raw == null || raw === '') return '';
+    return String(raw).trim().toLowerCase();
+}
+
 function formMatchesFilters(item, { search, statusFilter, regionFilter, purposeFilter, yarimReasonFilter }) {
     const searchLower = search.toLowerCase();
     const nameMatch =
@@ -56,7 +69,9 @@ function formMatchesFilters(item, { search, statusFilter, regionFilter, purposeF
         item.last_name?.toLowerCase().includes(searchLower) ||
         item.father_name?.toLowerCase().includes(searchLower);
     const phoneMatch = item.phone_number?.includes(searchLower);
-    const statusMatch = statusFilter === 'all' || item.status === statusFilter;
+    const itemStatus = getFormListItemStatusKey(item);
+    const wantStatus = String(statusFilter ?? '').trim().toLowerCase();
+    const statusMatch = wantStatus === 'all' || itemStatus === wantStatus;
     const regionMatch = regionFilter === 'all' || item.address_region === regionFilter;
     const purposeMatch = purposeFilter === 'all' || item.application_purpose === purposeFilter;
     const yarimMatch = yarimReasonFilter === 'all' || item.polls?.[0]?.yarim_reason === yarimReasonFilter;
@@ -162,30 +177,45 @@ export default function ApplicationsPage() {
 
         (async () => {
             try {
-                const params = buildFormsListQuery(pageToLoad, listFilterArgs);
-                const response = await api.get('/forms/', { params, signal: ac.signal });
-                const parsed = parseFormsListPayload(response.data);
-                if (parsed.bulkLocalPaging && parsed.bulkDataset) {
+                // Status seçiləndə: hər səhifədə eyni `status` parametri ilə birləşdirilmiş siyahı (DRF ilk səhifədə filter tətbiq etmirsə belə düz nəticə)
+                if (statusFilter !== 'all') {
+                    const all = await fetchAllFormsPages(api, listFilterArgs, { signal: ac.signal });
+                    if (ac.signal.aborted) return;
                     bulkDataFilterKeyRef.current = filterKey;
                     setDataMode('server');
-                    setBulkForms(parsed.bulkDataset);
-                    setListTotal(parsed.total);
-                    setListTotalExact(true);
-                    setListHasNext(false);
-                } else if (parsed.isPlainArray) {
-                    bulkDataFilterKeyRef.current = '';
-                    setDataMode('plain');
-                    setPlainFullList(parsed.items);
-                    setListTotal(parsed.items.length);
+                    setBulkForms(Array.isArray(all) ? all : []);
+                    setPlainFullList([]);
+                    setAccumulatedForms([]);
+                    const n = Array.isArray(all) ? all.length : 0;
+                    setListTotal(n);
                     setListTotalExact(true);
                     setListHasNext(false);
                 } else {
-                    bulkDataFilterKeyRef.current = '';
-                    setDataMode('server');
-                    setAccumulatedForms(parsed.items);
-                    setListTotal(parsed.total);
-                    setListTotalExact(parsed.totalExact !== false);
-                    setListHasNext(Boolean(parsed.hasNext ?? parsed.next));
+                    const params = buildFormsListQuery(pageToLoad, listFilterArgs);
+                    const response = await api.get('/forms/', { params, signal: ac.signal });
+                    const parsed = parseFormsListPayload(response.data);
+                    if (parsed.bulkLocalPaging && parsed.bulkDataset) {
+                        bulkDataFilterKeyRef.current = filterKey;
+                        setDataMode('server');
+                        setBulkForms(parsed.bulkDataset);
+                        setListTotal(parsed.total);
+                        setListTotalExact(true);
+                        setListHasNext(false);
+                    } else if (parsed.isPlainArray) {
+                        bulkDataFilterKeyRef.current = '';
+                        setDataMode('plain');
+                        setPlainFullList(parsed.items);
+                        setListTotal(parsed.items.length);
+                        setListTotalExact(true);
+                        setListHasNext(false);
+                    } else {
+                        bulkDataFilterKeyRef.current = '';
+                        setDataMode('server');
+                        setAccumulatedForms(parsed.items);
+                        setListTotal(parsed.total);
+                        setListTotalExact(parsed.totalExact !== false);
+                        setListHasNext(Boolean(parsed.hasNext ?? parsed.next));
+                    }
                 }
             } catch (error) {
                 if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') return;

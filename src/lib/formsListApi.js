@@ -57,9 +57,44 @@ export function parseFormsListPayload(data) {
     };
 }
 
+/**
+ * Virgüllü `status__in` string (backend CharFilter + parse).
+ * `null` = status filtresi yok.
+ */
+function buildStatusInQueryParam(status) {
+    if (status == null || status === '' || status === 'all') return null;
+    if (Array.isArray(status)) {
+        const parts = status.map((s) => String(s).trim()).filter((s) => s && s !== 'all');
+        return parts.length ? parts.join(',') : null;
+    }
+    const one = String(status).trim();
+    return one && one !== 'all' ? one : null;
+}
+
+/** Tekil və ya çoxlu status siyahısı — `status` üçün axios (təkrarlanan ?status= və ya massiv). */
+function buildStatusMultipleChoiceParam(status) {
+    if (status == null || status === '' || status === 'all') return null;
+    if (Array.isArray(status)) {
+        const parts = status.map((s) => String(s).trim()).filter((s) => s && s !== 'all');
+        if (parts.length === 0) return null;
+        if (parts.length === 1) return parts[0];
+        return parts;
+    }
+    const one = String(status).trim();
+    return one && one !== 'all' ? one : null;
+}
+
+/**
+ * Form siyahısı sorğusu. Status üçün həm `status__in` (virgüllü), həm `status`
+ * (MultipleChoiceFilter — Komitə ilə eyni `?status=`) göndərilir: bəzi django-filter
+ * kombinasiyalarında yalnız biri bağlananda boş nəticə qarşısı alınır.
+ */
 export function buildFormsListQuery(page, { status, region, purpose, search } = {}) {
     const p = { page, page_size: FORMS_PAGE_SIZE };
-    if (status && status !== 'all') p.status = status;
+    const statusIn = buildStatusInQueryParam(status);
+    const statusMc = buildStatusMultipleChoiceParam(status);
+    if (statusIn) p.status__in = statusIn;
+    if (statusMc != null) p.status = statusMc;
     if (region && region !== 'all') p.address_region = region;
     if (purpose && purpose !== 'all') p.application_purpose = purpose;
     const q = (search || '').trim();
@@ -68,12 +103,13 @@ export function buildFormsListQuery(page, { status, region, purpose, search } = 
 }
 
 /** Экспорт / филтрҳо: ҳамаи саҳифаҳоро пайваст мекунад (агар сервер `next` диҳад ё саҳифабандӣ дошта бошад). */
-export async function fetchAllFormsPages(api, filterArgs) {
+export async function fetchAllFormsPages(api, filterArgs, { signal } = {}) {
     const params = {
         ...buildFormsListQuery(1, filterArgs),
         page_size: FORMS_BULK_FETCH_PAGE_SIZE,
     };
-    const first = await api.get('/forms/', { params });
+    const reqOpts = signal ? { params, signal } : { params };
+    const first = await api.get('/forms/', reqOpts);
     let parsed = parseFormsListPayload(first.data);
     if (parsed.bulkLocalPaging && parsed.bulkDataset) {
         return parsed.bulkDataset;
@@ -83,7 +119,7 @@ export async function fetchAllFormsPages(api, filterArgs) {
     let next = parsed.next;
     let guard = 0;
     while (next && guard++ < 250) {
-        const res = await api.get(next);
+        const res = await api.get(next, signal ? { signal } : {});
         parsed = parseFormsListPayload(res.data);
         out.push(...parsed.items);
         next = parsed.next;
@@ -94,9 +130,10 @@ export async function fetchAllFormsPages(api, filterArgs) {
 /**
  * Мисли fetchAllFormsPages, вале params-и хоҳишӣ (масалан status__in) — бухгалтерия ва ғ.
  */
-export async function fetchAllFormsPagesWithParams(api, baseParams = {}) {
+export async function fetchAllFormsPagesWithParams(api, baseParams = {}, { signal } = {}) {
     const params = { ...baseParams, page: 1, page_size: FORMS_BULK_FETCH_PAGE_SIZE };
-    const first = await api.get('/forms/', { params });
+    const reqOpts = signal ? { params, signal } : { params };
+    const first = await api.get('/forms/', reqOpts);
     let parsed = parseFormsListPayload(first.data);
     if (parsed.bulkLocalPaging && parsed.bulkDataset) {
         return parsed.bulkDataset;
@@ -106,7 +143,7 @@ export async function fetchAllFormsPagesWithParams(api, baseParams = {}) {
     let next = parsed.next;
     let guard = 0;
     while (next && guard++ < 250) {
-        const res = await api.get(next);
+        const res = await api.get(next, signal ? { signal } : {});
         parsed = parseFormsListPayload(res.data);
         out.push(...parsed.items);
         next = parsed.next;
