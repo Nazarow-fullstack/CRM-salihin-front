@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     DollarSign,
@@ -8,7 +8,6 @@ import {
     CheckCircle,
     XCircle,
     FileText,
-    Calendar,
     ArrowDownToLine,
     CreditCard,
     Loader2,
@@ -17,9 +16,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
-import { createPayment, getStats } from '@/services/api';
+import { createPayment } from '@/services/api';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
-import { FORMS_BULK_FETCH_PAGE_SIZE, parseFormsListPayload } from '@/lib/formsListApi';
+import { FORMS_PAGE_SIZE, parseFormsListPayload } from '@/lib/formsListApi';
 
 // --- UTILS ---
 const formatDate = (dateString) => {
@@ -38,13 +37,13 @@ const escapeHtml = (text) => {
 
 export default function AccountingPage() {
     const router = useRouter();
-    const didInitialFetchRef = useRef(false);
 
     // --- State ---
     const [forms, setForms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [tabValue, setTabValue] = useState(0); // 0: All, 1: Unpaid, 2: Paid
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
 
     // Pagination State
@@ -60,26 +59,57 @@ export default function AccountingPage() {
         comment: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [statsFromApi, setStatsFromApi] = useState(null);
+    /** GET /forms/accounting_stats/ */
+    const [accountingStats, setAccountingStats] = useState(null);
+
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(search), 350);
+        return () => clearTimeout(t);
+    }, [search]);
 
     // Reset pagination when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [tabValue, search, dateFilter]);
+    }, [tabValue, debouncedSearch, dateFilter]);
 
-    // --- Data Fetching (ҳамаи саҳифаҳоро — на танҳо 10-тои аввал) ---
-    const fetchData = useCallback(async () => {
+    const buildAccountingQueryParams = useCallback((page = 1) => {
+        const p = {
+            view: 'accounting',
+            status__in: 'to_accountant,approved',
+            page,
+            page_size: FORMS_PAGE_SIZE,
+        };
+        const q = (debouncedSearch || '').trim();
+        if (q) p.search = q;
+        if (dateFilter.from) p.ref_date_from = dateFilter.from;
+        if (dateFilter.to) p.ref_date_to = dateFilter.to;
+        return p;
+    }, [debouncedSearch, dateFilter.from, dateFilter.to]);
+
+    const buildAccountingStatsParams = useCallback(() => {
+        const p = {};
+        const q = (debouncedSearch || '').trim();
+        if (q) p.search = q;
+        if (dateFilter.from) p.ref_date_from = dateFilter.from;
+        if (dateFilter.to) p.ref_date_to = dateFilter.to;
+        return p;
+    }, [debouncedSearch, dateFilter.from, dateFilter.to]);
+
+    // --- Data Fetching (backend filter: search, ref_date_*) ---
+    const fetchData = useCallback(async (signal) => {
         setLoading(true);
+        const listParams = buildAccountingQueryParams(1);
+        const statsParams = buildAccountingStatsParams();
+        const statsOpts = {
+            params: Object.keys(statsParams).length ? statsParams : undefined,
+        };
+        if (signal) {
+            statsOpts.signal = signal;
+        }
         try {
             const [firstRes, statsRes] = await Promise.all([
-                api.get('/forms/', {
-                    params: {
-                        status__in: 'to_accountant,approved',
-                        page: 1,
-                        page_size: FORMS_BULK_FETCH_PAGE_SIZE,
-                    },
-                }),
-                getStats().catch(() => null),
+                api.get('/forms/', { params: listParams, ...(signal ? { signal } : {}) }),
+                api.get('/forms/accounting_stats/', statsOpts).catch(() => null),
             ]);
 
             let firstParsed = parseFormsListPayload(firstRes.data);
@@ -88,9 +118,8 @@ export default function AccountingPage() {
                 : firstParsed.items;
 
             setForms(Array.isArray(initialRows) ? initialRows : []);
-            setStatsFromApi(statsRes?.data ?? null);
+            setAccountingStats(statsRes?.data ?? null);
 
-            // İlk data gəldikdən sonra spinner dayansın; qalan səhifələr arxa planda yüklənsin.
             setLoading(false);
 
             if (firstParsed.bulkLocalPaging || firstParsed.isPlainArray || !firstParsed.next) return;
@@ -99,7 +128,7 @@ export default function AccountingPage() {
             let next = firstParsed.next;
             let guard = 0;
             while (next && guard++ < 250) {
-                const res = await api.get(next);
+                const res = await api.get(next, signal ? { signal } : {});
                 firstParsed = parseFormsListPayload(res.data);
                 if (Array.isArray(firstParsed.items) && firstParsed.items.length > 0) {
                     merged.push(...firstParsed.items);
@@ -108,60 +137,31 @@ export default function AccountingPage() {
                 next = firstParsed.next;
             }
         } catch (error) {
+            if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') return;
             console.error("Failed to fetch accounting data", error);
             setLoading(false);
-        } finally {
-            // loading yuxarıda erkən söndürülür; burada yenidən dəyişməyə ehtiyac yoxdur.
         }
-    }, []);
+    }, [buildAccountingQueryParams, buildAccountingStatsParams]);
 
     useEffect(() => {
-        // Dev StrictMode-da eyni API sorğuları iki dəfə getməsin.
-        if (didInitialFetchRef.current) return;
-        didInitialFetchRef.current = true;
-        fetchData();
+        const ac = new AbortController();
+        fetchData(ac.signal);
+        return () => ac.abort();
     }, [fetchData]);
 
-    // --- Filtering ---
+    // --- Filtering (nom/tarix backend-də; burada yalnız tab) ---
     const filteredForms = useMemo(() => {
         return forms.filter(item => {
-            // 1. Status/Tab Filter
-            if (tabValue === 1) { // Unpaid
+            if (tabValue === 1) {
                 const isPaid = item.payment?.payment_status === 'paid';
                 if (isPaid) return false;
-            } else if (tabValue === 2) { // Paid
+            } else if (tabValue === 2) {
                 const isPaid = item.payment?.payment_status === 'paid';
                 if (!isPaid) return false;
             }
-
-            // 2. Search Filter
-            const searchLower = search.toLowerCase();
-            const nameMatch =
-                formatFormDisplayName(item).toLowerCase().includes(searchLower) ||
-                item.full_name?.toLowerCase().includes(searchLower) ||
-                item.first_name?.toLowerCase().includes(searchLower) ||
-                item.last_name?.toLowerCase().includes(searchLower) ||
-                item.father_name?.toLowerCase().includes(searchLower);
-            const idMatch = String(item.id).includes(searchLower);
-
-            if (!nameMatch && !idMatch) return false;
-
-            // 3. Date Filter
-            if (dateFilter.from) {
-                const itemDate = new Date(item.payment?.payment_date || item.created_at);
-                const fromDate = new Date(dateFilter.from);
-                if (itemDate < fromDate) return false;
-            }
-            if (dateFilter.to) {
-                const itemDate = new Date(item.payment?.payment_date || item.created_at);
-                const toDate = new Date(dateFilter.to);
-                toDate.setHours(23, 59, 59);
-                if (itemDate > toDate) return false;
-            }
-
             return true;
         });
-    }, [forms, tabValue, search, dateFilter]);
+    }, [forms, tabValue]);
 
     // --- Pagination Logic ---
     const paginatedForms = useMemo(() => {
@@ -202,14 +202,22 @@ export default function AccountingPage() {
         }
     };
 
-    // --- PDF Export Logic (Adapted from user snippet) ---
-    const handleExportToPDF = useCallback((form, e) => {
+    // --- PDF Export Logic — siyahı incə ola bilər; tam forma GET /forms/:id/ ---
+    const handleExportToPDF = useCallback(async (form, e) => {
         e.stopPropagation();
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
-        const poll = form.polls?.[0];
+        let fullForm = form;
+        try {
+            const res = await api.get(`/forms/${form.id}/`);
+            fullForm = res.data ?? form;
+        } catch (err) {
+            console.error('PDF: tam forma yüklənmədi', err);
+        }
+
+        const poll = fullForm.polls?.[0];
         let pollSection = '';
         if (poll) {
             pollSection = `
@@ -225,11 +233,11 @@ export default function AccountingPage() {
         }
 
         let documentsSection = '';
-        if (form.documents && form.documents.length > 0) {
+        if (fullForm.documents && fullForm.documents.length > 0) {
             documentsSection = `
                 <div class="section">
                     <h2 class="section-title">Ҳуҷҷатҳо</h2>
-                    ${form.documents.map((doc, idx) => `
+                    ${fullForm.documents.map((doc, idx) => `
                         <div class="info-row" style="flex-direction: column; align-items: flex-start;">
                             <div style="width: 100%; margin-bottom: 10px;">
                                 <div class="info-label" style="width: auto; margin-bottom: 5px;">Ҳуҷҷат #${idx + 1}:</div>
@@ -256,7 +264,7 @@ export default function AccountingPage() {
             <!DOCTYPE html>
             <html>
                 <head>
-                    <title>Маълумоти пардохт - #${form.id}</title>
+                    <title>Маълумоти пардохт - #${fullForm.id}</title>
                     <style>
                         body { font-family: sans-serif; padding: 40px; color: #1e293b; }
                         .header { text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; }
@@ -273,19 +281,19 @@ export default function AccountingPage() {
                     
                     <div class="section">
                         <h2 class="section-title">Маълумоти аризадиҳанда</h2>
-                        <div class="info-row"><div class="info-label">ID:</div><div class="info-value">#${form.id}</div></div>
-                        <div class="info-row"><div class="info-label">Ном ва насаб:</div><div class="info-value">${escapeHtml(formatFormDisplayName(form) || form.full_name)}</div></div>
-                        <div class="info-row"><div class="info-label">Телефон:</div><div class="info-value">${escapeHtml(form.phone_number)}</div></div>
-                        <div class="info-row"><div class="info-label">Минтақа:</div><div class="info-value">${escapeHtml(form.address_region)}</div></div>
+                        <div class="info-row"><div class="info-label">ID:</div><div class="info-value">#${fullForm.id}</div></div>
+                        <div class="info-row"><div class="info-label">Ном ва насаб:</div><div class="info-value">${escapeHtml(formatFormDisplayName(fullForm) || fullForm.full_name)}</div></div>
+                        <div class="info-row"><div class="info-label">Телефон:</div><div class="info-value">${escapeHtml(fullForm.phone_number)}</div></div>
+                        <div class="info-row"><div class="info-label">Минтақа:</div><div class="info-value">${escapeHtml(fullForm.address_region)}</div></div>
                     </div>
 
                     <div class="section">
                         <h2 class="section-title">Тафсилоти пардохт</h2>
-                        <div class="info-row"><div class="info-label">Маблағи тасдиқшуда:</div><div class="info-value"><span class="amount">${form.aidmounts?.[0]?.amount || 0} сомонӣ</span></div></div>
-                        <div class="info-row"><div class="info-label">Санаи пардохт:</div><div class="info-value">${form.payment?.payment_date || '—'}</div></div>
-                        <div class="info-row"><div class="info-label">Статус:</div><div class="info-value">${form.payment?.payment_status === 'paid' ? 'Пардохт шуд' : 'Пардохт нашуд'}</div></div>
-                        <div class="info-row"><div class="info-label">№ Ҳуҷҷат:</div><div class="info-value">${escapeHtml(form.payment?.document_number)}</div></div>
-                        <div class="info-row"><div class="info-label">Эзоҳ:</div><div class="info-value">${escapeHtml(form.payment?.comment)}</div></div>
+                        <div class="info-row"><div class="info-label">Маблағи тасдиқшуда:</div><div class="info-value"><span class="amount">${fullForm.approved_amount ?? fullForm.aidmounts?.[0]?.amount ?? 0} сомонӣ</span></div></div>
+                        <div class="info-row"><div class="info-label">Санаи пардохт:</div><div class="info-value">${fullForm.payment?.payment_date || '—'}</div></div>
+                        <div class="info-row"><div class="info-label">Статус:</div><div class="info-value">${fullForm.payment?.payment_status === 'paid' ? 'Пардохт шуд' : 'Пардохт нашуд'}</div></div>
+                        <div class="info-row"><div class="info-label">№ Ҳуҷҷат:</div><div class="info-value">${escapeHtml(fullForm.payment?.document_number)}</div></div>
+                        <div class="info-row"><div class="info-label">Эзоҳ:</div><div class="info-value">${escapeHtml(fullForm.payment?.comment)}</div></div>
                     </div>
 
                     ${pollSection}
@@ -313,26 +321,29 @@ export default function AccountingPage() {
         );
     }
 
-    // GET /stats/ → data.accounting (to_accountant | approved); yoxdursa cədvəl üzərindən fallback
+    // GET /forms/accounting_stats/ — yoxdursa cari siyahı üzrə fallback
     const approvedSum = (f) => {
         const a = parseFloat(f.approved_amount ?? f.aidmounts?.[0]?.amount ?? 0);
         return Number.isFinite(a) ? a : 0;
     };
-    const localTotalForms = forms.length;
-    const localPaidForms = forms.filter((f) => f.payment?.payment_status === 'paid').length;
-    const localTotalAmount = forms.reduce((sum, f) => sum + approvedSum(f), 0);
-    const localPaidAmount = forms
-        .filter((f) => f.payment?.payment_status === 'paid')
-        .reduce((sum, f) => sum + approvedSum(f), 0);
+    const orNum = (v, fb) => (Number.isFinite(Number(v)) ? Number(v) : fb);
 
-    const acc = statsFromApi?.accounting;
-    const fromApi = acc != null && typeof acc === 'object';
-    const orFallback = (v, fb) => (Number.isFinite(Number(v)) ? Number(v) : fb);
+    const formsToAccountant = forms.filter((f) => f.status === 'to_accountant');
+    const formsApproved = forms.filter((f) => f.status === 'approved');
 
-    const totalForms = fromApi ? orFallback(acc.total_forms, localTotalForms) : localTotalForms;
-    const paidForms = fromApi ? orFallback(acc.paid_forms, localPaidForms) : localPaidForms;
-    const totalAmount = fromApi ? orFallback(acc.total_amount, localTotalAmount) : localTotalAmount;
-    const paidAmount = fromApi ? orFallback(acc.paid_amount, localPaidAmount) : localPaidAmount;
+    const toAccountantCount = orNum(
+        accountingStats?.to_accountant_count,
+        formsToAccountant.length
+    );
+    const approvedCount = orNum(accountingStats?.approved_count, formsApproved.length);
+    const toAccountantAmountTotal = orNum(
+        accountingStats?.to_accountant_approved_amount_total,
+        formsToAccountant.reduce((s, f) => s + approvedSum(f), 0)
+    );
+    const approvedAmountTotal = orNum(
+        accountingStats?.approved_approved_amount_total,
+        formsApproved.reduce((s, f) => s + approvedSum(f), 0)
+    );
 
     return (
         <div className="min-h-screen p-4 md:p-6 lg:p-8">
@@ -372,28 +383,21 @@ export default function AccountingPage() {
                     </div>
                 </motion.div>
 
-                {/* Stats Section */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Stats — backend aggregate: /forms/accounting_stats/ */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <StatsCard
-                        title="Умумии дархостҳо"
-                        value={totalForms}
-                        subValue={`${totalAmount.toLocaleString()} с`}
+                        title="Интизор (буҳгалтерия)"
+                        value={toAccountantCount}
+                        subValue={`${toAccountantAmountTotal.toLocaleString('tg-TJ')} с`}
                         icon={FileText}
                         color="text-blue-400"
                     />
                     <StatsCard
-                        title="Пардохтшуда"
-                        value={paidForms}
-                        subValue={`${paidAmount.toLocaleString()} с`}
+                        title="Кӯмакшуда"
+                        value={approvedCount}
+                        subValue={`${approvedAmountTotal.toLocaleString('tg-TJ')} с`}
                         icon={CheckCircle}
                         color="text-emerald-400"
-                    />
-                    <StatsCard
-                        title="Боқимонда"
-                        value={totalForms - paidForms}
-                        subValue={`${(totalAmount - paidAmount).toLocaleString()} с`}
-                        icon={Calendar}
-                        color="text-amber-400"
                     />
                 </div>
 

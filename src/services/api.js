@@ -76,6 +76,9 @@ export const createPayment = (data) => {
 
 export const getStats = () => api.get('/stats/');
 
+/** Muhasebe ümumi statistikası (aggregate) — GET /forms/accounting_stats/ */
+export const getAccountingStats = () => api.get('/forms/accounting_stats/');
+
 // New user logic provided
 export const getPendingForms = () => {
     return api.get('/forms/', { params: { status: 'under_review' } });
