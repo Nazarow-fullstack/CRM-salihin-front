@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/axios';
-import { createPayment } from '@/services/api';
+import { createPayment, getAccountingStats } from '@/services/api';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
 import { FORMS_PAGE_SIZE, parseFormsListPayload } from '@/lib/formsListApi';
 
@@ -34,6 +34,12 @@ const escapeHtml = (text) => {
     if (!text) return '—';
     return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 };
+
+/** Танҳо `approved_amount` — бо `/forms/accounting_stats/` ва ҷадвал яксон */
+function getApprovedAmountSom(item) {
+    const a = parseFloat(item?.approved_amount);
+    return Number.isFinite(a) ? a : null;
+}
 
 export default function AccountingPage() {
     const router = useRouter();
@@ -59,7 +65,7 @@ export default function AccountingPage() {
         comment: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
-    /** GET /forms/accounting_stats/ */
+    /** GET /forms/accounting_stats/ — getAccountingStats() @/services/api */
     const [accountingStats, setAccountingStats] = useState(null);
 
     useEffect(() => {
@@ -100,16 +106,13 @@ export default function AccountingPage() {
         setLoading(true);
         const listParams = buildAccountingQueryParams(1);
         const statsParams = buildAccountingStatsParams();
-        const statsOpts = {
-            params: Object.keys(statsParams).length ? statsParams : undefined,
-        };
-        if (signal) {
-            statsOpts.signal = signal;
-        }
         try {
             const [firstRes, statsRes] = await Promise.all([
                 api.get('/forms/', { params: listParams, ...(signal ? { signal } : {}) }),
-                api.get('/forms/accounting_stats/', statsOpts).catch(() => null),
+                getAccountingStats(
+                    statsParams,
+                    signal ? { signal } : {}
+                ).catch(() => null),
             ]);
 
             let firstParsed = parseFormsListPayload(firstRes.data);
@@ -118,7 +121,17 @@ export default function AccountingPage() {
                 : firstParsed.items;
 
             setForms(Array.isArray(initialRows) ? initialRows : []);
-            setAccountingStats(statsRes?.data ?? null);
+            const statsPayload = statsRes?.data ?? null;
+            setAccountingStats(statsPayload);
+
+            console.log('[accounting_stats] GET /forms/accounting_stats/', {
+                params: statsParams,
+                data: statsPayload,
+            });
+            console.log('[accounting] GET /forms/ (səhifə 1)', {
+                params: listParams,
+                sətirlər: Array.isArray(initialRows) ? initialRows.length : 0,
+            });
 
             setLoading(false);
 
@@ -289,7 +302,7 @@ export default function AccountingPage() {
 
                     <div class="section">
                         <h2 class="section-title">Тафсилоти пардохт</h2>
-                        <div class="info-row"><div class="info-label">Маблағи тасдиқшуда:</div><div class="info-value"><span class="amount">${fullForm.approved_amount ?? fullForm.aidmounts?.[0]?.amount ?? 0} сомонӣ</span></div></div>
+                        <div class="info-row"><div class="info-label">Маблағи тасдиқшуда:</div><div class="info-value"><span class="amount">${Number.isFinite(Number(fullForm.approved_amount)) ? Number(fullForm.approved_amount).toLocaleString('tg-TJ') : '—'} сомонӣ</span></div></div>
                         <div class="info-row"><div class="info-label">Санаи пардохт:</div><div class="info-value">${fullForm.payment?.payment_date || '—'}</div></div>
                         <div class="info-row"><div class="info-label">Статус:</div><div class="info-value">${fullForm.payment?.payment_status === 'paid' ? 'Пардохт шуд' : 'Пардохт нашуд'}</div></div>
                         <div class="info-row"><div class="info-label">№ Ҳуҷҷат:</div><div class="info-value">${escapeHtml(fullForm.payment?.document_number)}</div></div>
@@ -322,10 +335,6 @@ export default function AccountingPage() {
     }
 
     // GET /forms/accounting_stats/ — yoxdursa cari siyahı üzrə fallback
-    const approvedSum = (f) => {
-        const a = parseFloat(f.approved_amount ?? f.aidmounts?.[0]?.amount ?? 0);
-        return Number.isFinite(a) ? a : 0;
-    };
     const orNum = (v, fb) => (Number.isFinite(Number(v)) ? Number(v) : fb);
 
     const formsToAccountant = forms.filter((f) => f.status === 'to_accountant');
@@ -338,11 +347,11 @@ export default function AccountingPage() {
     const approvedCount = orNum(accountingStats?.approved_count, formsApproved.length);
     const toAccountantAmountTotal = orNum(
         accountingStats?.to_accountant_approved_amount_total,
-        formsToAccountant.reduce((s, f) => s + approvedSum(f), 0)
+        formsToAccountant.reduce((s, f) => s + (getApprovedAmountSom(f) ?? 0), 0)
     );
     const approvedAmountTotal = orNum(
         accountingStats?.approved_approved_amount_total,
-        formsApproved.reduce((s, f) => s + approvedSum(f), 0)
+        formsApproved.reduce((s, f) => s + (getApprovedAmountSom(f) ?? 0), 0)
     );
 
     return (
@@ -383,22 +392,28 @@ export default function AccountingPage() {
                     </div>
                 </motion.div>
 
-                {/* Stats — backend aggregate: /forms/accounting_stats/ */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <StatsCard
-                        title="Интизор (буҳгалтерия)"
-                        value={toAccountantCount}
-                        subValue={`${toAccountantAmountTotal.toLocaleString('tg-TJ')} с`}
-                        icon={FileText}
-                        color="text-blue-400"
-                    />
-                    <StatsCard
-                        title="Кӯмакшуда"
-                        value={approvedCount}
-                        subValue={`${approvedAmountTotal.toLocaleString('tg-TJ')} с`}
-                        icon={CheckCircle}
-                        color="text-emerald-400"
-                    />
+                {/* Stats — backend aggregate: /forms/accounting_stats/ (танҳо approved_amount) */}
+                <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <StatsCard
+                            title="Интизор (буҳгалтерия)"
+                            value={toAccountantCount}
+                            subValue={`${toAccountantAmountTotal.toLocaleString('tg-TJ')} с`}
+                            icon={FileText}
+                            color="text-blue-400"
+                        />
+                        <StatsCard
+                            title="Кӯмакшуда"
+                            value={approvedCount}
+                            subValue={`${approvedAmountTotal.toLocaleString('tg-TJ')} с`}
+                            icon={CheckCircle}
+                            color="text-emerald-400"
+                        />
+                    </div>
+                    <p className="text-xs text-slate-500 px-1">
+                        Рақами боло: шумораи аризаҳо дар ҳамон вазъият. Ҷамъи маблағ ва сутуни «Маблағ» — <span className="text-slate-400">танҳо approved_amount</span>
+                        {' '}(маблағи тасдиқшудаи кумита). Ҷадвал ҳамаи аризаҳои буҳгалтерияро нишон медиҳад, на танҳо «интизор».
+                    </p>
                 </div>
 
                 {/* Main Content (Filters + Table) */}
@@ -496,7 +511,9 @@ export default function AccountingPage() {
                                             </td>
                                         </tr>
                                     ) : (
-                                        paginatedForms.map((item, idx) => (
+                                        paginatedForms.map((item, idx) => {
+                                            const rowApprovedSom = getApprovedAmountSom(item);
+                                            return (
                                             <motion.tr
                                                 key={item.id}
                                                 initial={{ opacity: 0, x: -10 }}
@@ -514,7 +531,7 @@ export default function AccountingPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-teal-400 font-medium">
-                                                    {item.aidmounts?.[0]?.amount ? `${parseFloat(item.aidmounts[0].amount).toLocaleString()} с` : '—'}
+                                                    {rowApprovedSom != null ? `${rowApprovedSom.toLocaleString('tg-TJ')} с` : '—'}
                                                 </td>
                                                 <td className="px-6 py-4 text-slate-400 text-sm">
                                                     {formatDate(item.payment?.payment_date)}
@@ -549,7 +566,8 @@ export default function AccountingPage() {
                                                     </div>
                                                 </td>
                                             </motion.tr>
-                                        ))
+                                            );
+                                        })
                                     )}
                                 </AnimatePresence>
                             </tbody>
@@ -629,8 +647,12 @@ export default function AccountingPage() {
                                     <div className="bg-white/5 p-4 rounded-xl">
                                         <p className="text-sm text-slate-400">Аризадиҳанда</p>
                                         <p className="text-lg font-medium text-white">{formatFormDisplayName(paymentModal.data) || paymentModal.data?.full_name}</p>
-                                        <p className="text-teal-400 font-bold mt-1">
-                                            {paymentModal.data?.aidmounts?.[0]?.amount ? `${paymentModal.data.aidmounts[0].amount} сомонӣ` : '—'}
+                                        <p className="text-xs text-slate-500 mt-2">Маблағи тасдиқшуда</p>
+                                        <p className="text-teal-400 font-bold mt-0.5">
+                                            {(() => {
+                                                const v = getApprovedAmountSom(paymentModal.data);
+                                                return v != null ? `${v.toLocaleString('tg-TJ')} сомонӣ` : '—';
+                                            })()}
                                         </p>
                                     </div>
 

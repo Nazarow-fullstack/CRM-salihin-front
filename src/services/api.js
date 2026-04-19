@@ -74,10 +74,31 @@ export const createPayment = (data) => {
     return api.post('/payments/', data);
 };
 
+/**
+ * GET /stats/ — ümumi statistika (JWT).
+ * Cavabda `accounting` obyekti (əgər backend göndərir): `to_accountant_approved_amount_total`,
+ * `approved_approved_amount_total` — mövcud `total_amount` / `paid_amount` davranışı saxlanılır.
+ */
 export const getStats = () => api.get('/stats/');
 
-/** Muhasebe ümumi statistikası (aggregate) — GET /forms/accounting_stats/ */
-export const getAccountingStats = () => api.get('/forms/accounting_stats/');
+/**
+ * GET /forms/accounting_stats/ — muhasebe aggregate (JWT).
+ * @param {Record<string, string>} [params] — məs: search, ref_date_from, ref_date_to
+ * @param {import('axios').AxiosRequestConfig} [axiosConfig] — signal, headers, …
+ * @returns {Promise<import('axios').AxiosResponse<{
+ *   to_accountant_count?: number,
+ *   to_accountant_approved_amount_total?: number,
+ *   approved_count?: number,
+ *   approved_approved_amount_total?: number
+ * }>>}
+ */
+export const getAccountingStats = (params = {}, axiosConfig = {}) => {
+    const config = { ...axiosConfig };
+    if (params && typeof params === 'object' && Object.keys(params).length > 0) {
+        config.params = params;
+    }
+    return api.get('/forms/accounting_stats/', config);
+};
 
 // New user logic provided
 export const getPendingForms = () => {
