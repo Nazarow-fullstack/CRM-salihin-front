@@ -10,7 +10,8 @@ import {
     ChevronRight,
     X,
     Loader2,
-    Save
+    Save,
+    Upload,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
@@ -22,6 +23,7 @@ import {
     buildFormsListQuery,
     fetchAllFormsPages,
 } from '@/lib/formsListApi';
+import { uploadFormsExcel } from '@/lib/formsExcelUpload';
 
 // --- CONFIGURATION ---
 const STATUS_CONFIG = {
@@ -98,6 +100,9 @@ export default function ApplicationsPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [loading, setLoading] = useState(true);
     const [exportLoading, setExportLoading] = useState(false);
+    const excelFileInputRef = useRef(null);
+    const [excelUploading, setExcelUploading] = useState(false);
+    const [excelUploadResult, setExcelUploadResult] = useState(null);
 
     // Filters
     const [search, setSearch] = useState(() => searchParams.get('search') || '');
@@ -410,6 +415,36 @@ export default function ApplicationsPage() {
         router.push(href);
     };
 
+    const handleExcelPickClick = () => {
+        excelFileInputRef.current?.click();
+    };
+
+    const handleExcelFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        if (!/\.(xlsx|xls)$/i.test(file.name)) {
+            alert('Фақат Excel (.xlsx, .xls) интихоб кунед.');
+            return;
+        }
+        setExcelUploading(true);
+        setExcelUploadResult(null);
+        try {
+            const res = await uploadFormsExcel(api, file);
+            setExcelUploadResult(res.data ?? null);
+            setRefreshKey((k) => k + 1);
+        } catch (err) {
+            const msg =
+                err?.response?.data?.error ||
+                err?.response?.data?.detail ||
+                err?.message ||
+                'Excel боргузорӣ нашуд';
+            alert(String(msg));
+        } finally {
+            setExcelUploading(false);
+        }
+    };
+
     return (
         <div className="applications-page-theme space-y-6">
 
@@ -423,7 +458,28 @@ export default function ApplicationsPage() {
                      Дархостҳои кӯмак ва пешниҳодҳо
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                    <input
+                        ref={excelFileInputRef}
+                        type="file"
+                        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                        className="hidden"
+                        onChange={handleExcelFileChange}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleExcelPickClick}
+                        disabled={excelUploading || loading}
+                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                        title="Excel (.xlsx) — сутунҳо: Ном ва насаб, телефон, минтақа, ..."
+                    >
+                        {excelUploading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <Upload className="w-4 h-4" />
+                        )}{' '}
+                        Excel
+                    </button>
                     <button
                         type="button"
                         onClick={handleExport}
@@ -446,6 +502,44 @@ export default function ApplicationsPage() {
                     </button>
                 </div>
             </div>
+
+            {excelUploadResult?.success && (
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/90 dark:bg-emerald-950/40 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-100">
+                    <div className="flex items-start justify-between gap-2">
+                        <div>
+                            <p className="font-medium">{excelUploadResult.message || 'Боргузорӣ анҷом ёфт'}</p>
+                            <p className="mt-1 text-emerald-800/90 dark:text-emerald-200/90">
+                                Сатрҳо: {excelUploadResult.total_rows ?? '—'} · Эҷод:{' '}
+                                <span className="font-semibold">{excelUploadResult.created ?? 0}</span>
+                                {Number(excelUploadResult.failed) > 0 && (
+                                    <>
+                                        {' '}
+                                        · Хато: <span className="font-semibold">{excelUploadResult.failed}</span>
+                                    </>
+                                )}
+                            </p>
+                            {excelUploadResult.error_message && (
+                                <p className="mt-1 text-xs opacity-90">{excelUploadResult.error_message}</p>
+                            )}
+                            {Array.isArray(excelUploadResult.errors) && excelUploadResult.errors.length > 0 && (
+                                <ul className="mt-2 max-h-32 overflow-y-auto text-xs list-disc pl-4 space-y-0.5 text-emerald-900/80 dark:text-emerald-100/80">
+                                    {excelUploadResult.errors.map((line, i) => (
+                                        <li key={i}>{line}</li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setExcelUploadResult(null)}
+                            className="shrink-0 p-1 rounded-lg hover:bg-emerald-200/50 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200"
+                            aria-label="Пӯшидан"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* FILTERS BAR */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
