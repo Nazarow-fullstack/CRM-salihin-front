@@ -35,7 +35,7 @@ export default function ProfilePage() {
             setEditData(response.data);
         } catch (error) {
             console.error("Failed to load profile", error);
-            setMessage({ type: 'error', text: 'Failed to load profile data' });
+            setMessage({ type: 'error', text: 'Маълумоти профил бор нашуд' });
         } finally {
             setLoading(false);
         }
@@ -46,11 +46,11 @@ export default function ProfilePage() {
         setMessage({ type: '', text: '' });
         try {
             await updateProfile(editData);
-            setMessage({ type: 'success', text: 'Profile updated successfully' });
+            setMessage({ type: 'success', text: 'Профил бомуваффақият нав карда шуд' });
             await loadProfile();
         } catch (error) {
             console.error("Failed to update profile", error);
-            setMessage({ type: 'error', text: 'Failed to update profile' });
+            setMessage({ type: 'error', text: 'Профил нав нашуд' });
         } finally {
             setLoading(false);
         }
@@ -58,7 +58,7 @@ export default function ProfilePage() {
 
     const handlePasswordChange = async () => {
         if (pwData.new_password !== pwData.new_password2) {
-            setMessage({ type: 'error', text: 'New passwords do not match' });
+            setMessage({ type: 'error', text: 'Паролҳои нав мувофиқат намекунанд' });
             return;
         }
 
@@ -66,13 +66,13 @@ export default function ProfilePage() {
         setMessage({ type: '', text: '' });
         try {
             await changePassword(pwData);
-            setMessage({ type: 'success', text: 'Password changed successfully' });
+            setMessage({ type: 'success', text: 'Парол бомуваффақият иваз шуд' });
             setPwData({ old_password: '', new_password: '', new_password2: '' });
         } catch (error) {
             console.error("Password change failed", error);
             const errorMsg = error.response?.data?.old_password ||
                 error.response?.data?.new_password ||
-                'Failed to change password. Please check your old password.';
+                'Паролро иваз кардан нашуд. Пароли кӯҳнаро санҷед.';
             setMessage({ type: 'error', text: errorMsg });
         } finally {
             setPwLoading(false);

@@ -326,7 +326,7 @@ export default function ApplicationDetailPage() {
         } catch (err) {
             console.error(err);
             if (!isStale()) {
-                setError('Failed to load application details.');
+                setError('Маълумоти ариза бор нашуд.');
             }
         } finally {
             if (!isStale()) {
@@ -362,7 +362,7 @@ export default function ApplicationDetailPage() {
             fetchData();
         } catch (err) {
             console.error(err);
-            alert('Failed to update status');
+            alert('Вазъият тағйир нашуд. Лутфан дубора кӯшиш кунед.');
         }
     };
 
@@ -410,7 +410,7 @@ export default function ApplicationDetailPage() {
             const optimisticNote = {
                 id: Date.now(),
                 note: newNote,
-                user_username: user?.username || 'You',
+                user_username: user?.username || 'Шумо',
                 created_at: new Date().toISOString()
             };
 
@@ -423,7 +423,7 @@ export default function ApplicationDetailPage() {
             await api.post('/form-notes/', { form: id, note: newNote });
         } catch (err) {
             console.error(err);
-            alert('Failed to add note');
+            alert('Шарҳ илова нашуд. Лутфан дубора кӯшиш кунед.');
         } finally {
             setIsSubmittingNote(false);
         }
@@ -536,7 +536,7 @@ export default function ApplicationDetailPage() {
         );
     }
 
-    if (!form) return <div className="p-8 text-center text-slate-400">Application not found</div>;
+    if (!form) return <div className="p-8 text-center text-slate-400">Ариза ёфт нашуд</div>;
 
     return (
         <div className="application-detail-theme min-h-screen">
@@ -710,7 +710,7 @@ export default function ApplicationDetailPage() {
                                         onClick={() => setIsEditPollOpen(true)}
                                         className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 px-3 py-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 transition-all hover:bg-blue-500/20"
                                     >
-                                        <Edit className="w-3 h-3" /> Edit
+                                        <Edit className="w-3 h-3" /> Ислоҳ
                                     </button>
                                 </div>
 
@@ -888,7 +888,7 @@ export default function ApplicationDetailPage() {
                                     type="text"
                                     value={newNote}
                                     onChange={(e) => setNewNote(e.target.value)}
-                                    placeholder="Write a note..."
+                                    placeholder="Шарҳ нависед..."
                                     className="w-full bg-slate-950/50 border border-white/20 rounded-xl pl-4 pr-14 py-3.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-lg"
                                 />
                                 <button
@@ -925,7 +925,7 @@ export default function ApplicationDetailPage() {
                                                 fetchData();
                                             } catch (err) {
                                                 console.error(err);
-                                                alert('Failed to upload document');
+                                                alert('Ҳуҷҷат бор нашуд. Лутфан дубора кӯшиш кунед.');
                                             }
                                         }}
                                     />
@@ -953,7 +953,7 @@ export default function ApplicationDetailPage() {
                                                 fetchData();
                                             } catch (err) {
                                                 console.error(err);
-                                                alert('Failed to upload document');
+                                                alert('Ҳуҷҷат бор нашуд. Лутфан дубора кӯшиш кунед.');
                                             }
                                         }}
                                     />

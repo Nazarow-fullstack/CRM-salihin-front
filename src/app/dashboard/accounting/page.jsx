@@ -209,7 +209,7 @@ export default function AccountingPage() {
             setPaymentModal({ open: false, data: null });
         } catch (error) {
             console.error("Payment failed", error);
-            alert("Payment failed. Please try again.");
+            alert('Пардохт нашуд. Лутфан дубора кӯшиш кунед.');
         } finally {
             setIsSubmitting(false);
         }
@@ -383,10 +383,10 @@ export default function AccountingPage() {
 
                             <button
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 border border-white/10 rounded-xl text-white hover:bg-slate-700 hover:border-white/20 transition-all shadow-lg"
-                                onClick={() => alert('Excel export coming soon')}
+                                onClick={() => alert('Содироти Excel тез вақт омода мешавад')}
                             >
                                 <Download className="w-4 h-4" />
-                                Export Excel
+                                Содироти Excel
                             </button>
                         </div>
                     </div>
@@ -559,7 +559,7 @@ export default function AccountingPage() {
                                                         <button
                                                             onClick={() => handleOpenPayment(item)}
                                                             className="p-2 text-slate-400 hover:text-teal-400 hover:bg-teal-500/10 rounded-lg transition-all"
-                                                            title="Edit Payment"
+                                                            title="Пардохтро таҳрир кунед"
                                                         >
                                                             <CreditCard className="w-4 h-4" />
                                                         </button>

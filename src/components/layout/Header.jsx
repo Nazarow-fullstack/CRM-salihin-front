@@ -77,7 +77,7 @@ export default function Header({ setIsSidebarOpen }) {
                     size="icon"
                     onClick={() => setTheme((resolvedTheme || theme) === 'dark' ? 'light' : 'dark')}
                     className="rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
-                    aria-label="Toggle theme"
+                    aria-label="Мавзӯъро иваз кунед"
                 >
                     {!mounted ? null : (resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />)}
                 </Button>

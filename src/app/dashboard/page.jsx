@@ -165,9 +165,9 @@ export default function DashboardPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-white">
                                 <TrendingUp className="h-5 w-5 text-blue-400" />
-                                Recent Activity
+                                Фаъолияти охирин
                             </CardTitle>
-                            <CardDescription className="text-slate-400">Latest actions in the system</CardDescription>
+                            <CardDescription className="text-slate-400">Амалиётҳои охирин дар система</CardDescription>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
                             <div className="space-y-4">
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-full py-10 text-slate-500">
                                         <Clock className="h-8 w-8 mb-2 opacity-50" />
-                                        <p className="text-sm">No recent activity</p>
+                                        <p className="text-sm">Фаъолият нест</p>
                                     </div>
                                 )}
                             </div>

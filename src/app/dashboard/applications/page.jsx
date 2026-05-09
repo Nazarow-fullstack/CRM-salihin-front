@@ -343,7 +343,7 @@ export default function ApplicationsPage() {
             setRefreshKey((k) => k + 1);
         } catch (error) {
             console.error("Failed to create application", error);
-            alert("Error creating application. Please check the fields.");
+            alert('Хатогӣ ҳангоми сабт. Майдонҳоро санҷед.');
         } finally {
             setIsSubmitting(false);
         }
@@ -634,7 +634,7 @@ export default function ApplicationsPage() {
                                     >
                                         <td className="px-6 py-4 font-medium text-slate-500">#{item.id}</td>
                                         <td className="px-6 py-4">
-                                            <div className="font-semibold text-slate-900 dark:text-slate-100">{formatFormDisplayName(item) || item.full_name || 'Unknown'}</div>
+                                            <div className="font-semibold text-slate-900 dark:text-slate-100">{formatFormDisplayName(item) || item.full_name || 'Номаълум'}</div>
                                             <div className="text-xs text-slate-500 dark:text-slate-400">{item.phone_number}</div>
                                         </td>
                                         <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{item.application_purpose || '-'}</td>

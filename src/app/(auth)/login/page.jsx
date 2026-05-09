@@ -72,7 +72,7 @@ export default function LoginPage() {
                                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 transition-colors" />
                                     <Input
                                         type="text"
-                                        placeholder="Username"
+                                        placeholder="Номи корбар"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         required
@@ -83,7 +83,7 @@ export default function LoginPage() {
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 transition-colors" />
                                     <Input
                                         type="password"
-                                        placeholder="Password"
+                                        placeholder="Парол"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
