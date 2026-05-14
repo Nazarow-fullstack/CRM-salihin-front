@@ -32,14 +32,14 @@ const STATUS_LABELS = {
     'family_video': 'Видеои кандидат оила',
     'help_later': 'Баъдтар кумак мекунем',
     'bank_card': 'Рақами банкии карт',
-    'deleted': 'Удалит',
+    'deleted': 'Нест карда шуд',
 };
 
 const ROLE_LABELS = {
-    'operator': 'Operator',
-    'reviewer': 'Reviewer',
-    'accountant': 'Accountant',
-    'superuser': 'SuperUser',
+    'operator': 'Оператор',
+    'reviewer': 'Кумита',
+    'accountant': 'Бухгалтер',
+    'superuser': 'Супер Админ',
 };
 
 const ROLE_COLORS = {

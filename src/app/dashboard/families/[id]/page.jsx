@@ -48,7 +48,7 @@ const STATUS_LABELS = {
     family_video: 'Видеои кандидат оила',
     help_later: 'Баъдтар кӯмак мекунем',
     bank_card: 'Ҳуҷҷат',
-    deleted: 'Удалит',
+    deleted: 'Нест карда шуд',
 };
 
 const STATUS_COLORS = {

@@ -155,9 +155,9 @@ export default function CommitteePage() {
             console.error("Failed to submit vote", error);
             if (error.response) {
                 console.error("Error response data:", error.response.data);
-                alert(`Failed to submit vote: ${JSON.stringify(error.response.data)}`);
+                alert(`Овоздиҳӣ нашуд: ${JSON.stringify(error.response.data)}`);
             } else {
-                alert("Failed to submit vote. Please try again.");
+                alert('Овоздиҳӣ нашуд. Лутфан дубора кӯшиш кунед.');
             }
         } finally {
             setIsSubmitting(false);

@@ -29,7 +29,7 @@ const STATUS_LABELS = {
     family_video: 'Видеои',
     help_later: 'Баъдтар',
     bank_card: 'Ҳуҷҷат',
-    deleted: 'Удалит',
+    deleted: 'Нест карда шуд',
 };
 
 const STATUS_COLORS = {

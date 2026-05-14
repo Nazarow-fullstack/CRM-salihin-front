@@ -15,7 +15,7 @@ const useAppStore = create((set, get) => ({
     fetchOnlineUsers: async () => {
         try {
             // Assuming endpoint is /users/online/ or similar
-            const response = await api.get('/online-users');
+            const response = await api.get('/online-users/');
             set({ onlineUsers: response.data });
         } catch (error) {
             console.error("Failed to fetch online users", error);
@@ -34,10 +34,10 @@ const useAppStore = create((set, get) => ({
                 const date = new Date(iso);
                 const now = new Date();
                 const diffInSeconds = Math.floor((now - date) / 1000);
-                if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
-                if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-                if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-                return `${Math.floor(diffInSeconds / 86400)}d ago`;
+                if (diffInSeconds < 60) return `${diffInSeconds} сония пеш`;
+                if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} дақиқа пеш`;
+                if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} соат пеш`;
+                return `${Math.floor(diffInSeconds / 86400)} рӯз пеш`;
             };
 
             // Як саҳифа — ҳамаи шарҳҳо лозим нест; backend бояд pagination дошта бошад (page / page_size)

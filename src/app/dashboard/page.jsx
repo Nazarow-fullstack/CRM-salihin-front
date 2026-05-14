@@ -40,7 +40,7 @@ const STATUS_CONFIG = {
     family_video: { icon: Video, color: '#EC407A', label: 'Видеои кандидат оила' },
     help_later: { icon: Clock, color: '#78909C', label: 'Баъдтар кӯмак мекунем' },
     bank_card: { icon: CreditCard, color: '#FFEB3B', label: 'Рақами банкии карт' },
-    deleted: { icon: Trash2, color: '#9CA3AF', label: 'Удалит' },
+    deleted: { icon: Trash2, color: '#9CA3AF', label: 'Нест карда шуд' },
 };
 
 export default function DashboardPage() {

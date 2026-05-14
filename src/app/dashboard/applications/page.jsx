@@ -36,7 +36,7 @@ const STATUS_CONFIG = {
     family_video: { label: 'Видеои', color: 'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400' },
     help_later: { label: 'Баъдтар', color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400' },
     bank_card: { label: 'Ҳуҷҷат', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' },
-    deleted: { label: 'Удалит', color: 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-500' },
+    deleted: { label: 'Нест карда шуд', color: 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-500' },
 };
 
 const REGIONS = ['НТМ', 'ХАТЛОН', 'СУҒД', 'ВМКБ', 'БЕРУН АЗ ТҶК'];
@@ -491,7 +491,7 @@ export default function ApplicationsPage() {
                         ) : (
                             <Download className="w-4 h-4" />
                         )}{' '}
-                        Export
+                        Содирот
                     </button>
                     <button
                         type="button"

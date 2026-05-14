@@ -15,10 +15,11 @@ import {
     Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as XLSX from 'xlsx';
 import api from '@/lib/axios';
 import { createPayment, getAccountingStats } from '@/services/api';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
-import { FORMS_PAGE_SIZE, parseFormsListPayload } from '@/lib/formsListApi';
+import { FORMS_PAGE_SIZE, parseFormsListPayload, fetchAllFormsPagesWithParams } from '@/lib/formsListApi';
 
 // --- UTILS ---
 const formatDate = (dateString) => {
@@ -65,6 +66,7 @@ export default function AccountingPage() {
         comment: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [exportLoading, setExportLoading] = useState(false);
     /** GET /forms/accounting_stats/ — getAccountingStats() @/services/api */
     const [accountingStats, setAccountingStats] = useState(null);
 
@@ -123,16 +125,6 @@ export default function AccountingPage() {
             setForms(Array.isArray(initialRows) ? initialRows : []);
             const statsPayload = statsRes?.data ?? null;
             setAccountingStats(statsPayload);
-
-            console.log('[accounting_stats] GET /forms/accounting_stats/', {
-                params: statsParams,
-                data: statsPayload,
-            });
-            console.log('[accounting] GET /forms/ (səhifə 1)', {
-                params: listParams,
-                sətirlər: Array.isArray(initialRows) ? initialRows.length : 0,
-            });
-
             setLoading(false);
 
             if (firstParsed.bulkLocalPaging || firstParsed.isPlainArray || !firstParsed.next) return;
@@ -197,16 +189,24 @@ export default function AccountingPage() {
         if (!paymentModal.data) return;
         setIsSubmitting(true);
         try {
-            const payload = {
-                form: paymentModal.data.id,
-                ...paymentForm
-            };
+            const formId = paymentModal.data.id;
+            const existingPaymentId = paymentModal.data?.payment?.id;
 
-            await createPayment(payload);
+            // Пардохтро сабт мекунем (PATCH ё POST)
+            if (existingPaymentId) {
+                await api.patch(`/payments/${existingPaymentId}/`, paymentForm);
+            } else {
+                await createPayment({ form: formId, ...paymentForm });
+            }
 
-            // Refetch to update list
-            await fetchData();
+            // Агар пардохт "Пардохт шуд" бошад → статуси аризаро "approved" мекунем
+            if (paymentForm.payment_status === 'paid') {
+                await api.patch(`/forms/${formId}/`, { status: 'approved' });
+            }
+
+            // Аввал modal бандед, баъд ба замина навсозӣ кунед
             setPaymentModal({ open: false, data: null });
+            fetchData();
         } catch (error) {
             console.error("Payment failed", error);
             alert('Пардохт нашуд. Лутфан дубора кӯшиш кунед.');
@@ -214,6 +214,116 @@ export default function AccountingPage() {
             setIsSubmitting(false);
         }
     };
+
+    // --- Excel Export Logic ---
+    const handleExportToExcel = useCallback(async () => {
+        setExportLoading(true);
+        try {
+            const params = {
+                view: 'accounting',
+                status__in: 'to_accountant,approved',
+            };
+            const q = (debouncedSearch || '').trim();
+            if (q) params.search = q;
+            if (dateFilter.from) params.ref_date_from = dateFilter.from;
+            if (dateFilter.to) params.ref_date_to = dateFilter.to;
+
+            // Ҳамаи саҳифаҳоро мегирем
+            const all = await fetchAllFormsPagesWithParams(api, params);
+
+            // Tab filteri татбиқ мекунем
+            const rows = all.filter((item) => {
+                if (tabValue === 1) return item.payment?.payment_status !== 'paid';
+                if (tabValue === 2) return item.payment?.payment_status === 'paid';
+                return true;
+            });
+
+            if (rows.length === 0) {
+                alert('Маълумоти содирот ёфт нашуд');
+                return;
+            }
+
+            const STATUS_LABELS = {
+                to_accountant: 'Бухгалтерия',
+                approved: 'Бомуваффақият кӯмак карда шуд',
+            };
+
+            const headers = [
+                'ID',
+                'Ном ва насаб',
+                'Телефон',
+                'Минтақа',
+                'Суроға',
+                'Вазъият (статус)',
+                'Маблағи тасдиқшуда (сом.)',
+                'Статуси пардохт',
+                'Санаи пардохт',
+                'Рақами ҳуҷҷат',
+                'Эзоҳи пардохт',
+                'Мақсади ариза',
+                'Санаи воридшуда',
+                'Аъзои оила',
+                'Санаи таваллуд',
+                'Ҷойи кор / Касб',
+                'Музди маош',
+                'Вазъи молиявӣ',
+                'Сабаби кӯмак',
+                'Ҷойи зист',
+            ];
+
+            const poll = (f) => f.polls?.[0];
+
+            const data = rows.map((f) => [
+                f.id,
+                formatFormDisplayName(f) || f.full_name || '',
+                f.phone_number || '',
+                f.address_region || '',
+                f.detailed_address || '',
+                STATUS_LABELS[f.status] || f.status || '',
+                getApprovedAmountSom(f) ?? '',
+                f.payment?.payment_status === 'paid' ? 'Пардохт шуд' : 'Пардохт нашуд',
+                f.payment?.payment_date || '',
+                f.payment?.document_number || '',
+                f.payment?.comment || '',
+                f.application_purpose || '',
+                f.created_at ? new Date(f.created_at).toLocaleDateString('tg-TJ') : '',
+                poll(f)?.family_members ?? '',
+                poll(f)?.data_of_birth ? new Date(poll(f).data_of_birth).toLocaleDateString('tg-TJ') : '',
+                poll(f)?.profession_jobs || '',
+                poll(f)?.monthly_income ?? '',
+                poll(f)?.financial_status || '',
+                poll(f)?.yarim_reason || '',
+                poll(f)?.place_of_residence || '',
+            ]);
+
+            const wsData = [headers, ...data];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+            // Сутунҳоро васеъ мекунем
+            ws['!cols'] = headers.map((h, i) => ({
+                wch: i === 0 ? 8 : i === 1 ? 30 : i === 10 ? 25 : 18,
+            }));
+
+            // Сарлавҳаро ғафс мекунем
+            headers.forEach((_, colIdx) => {
+                const cellRef = XLSX.utils.encode_cell({ r: 0, c: colIdx });
+                if (ws[cellRef]) {
+                    ws[cellRef].s = { font: { bold: true } };
+                }
+            });
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Бухгалтерия');
+
+            const fileName = `accounting_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        } catch (err) {
+            console.error('Excel export failed', err);
+            alert('Содирот нашуд. Лутфан дубора кӯшиш кунед.');
+        } finally {
+            setExportLoading(false);
+        }
+    }, [debouncedSearch, dateFilter, tabValue]);
 
     // --- PDF Export Logic — siyahı incə ola bilər; tam forma GET /forms/:id/ ---
     const handleExportToPDF = useCallback(async (form, e) => {
@@ -382,10 +492,14 @@ export default function AccountingPage() {
                             </div>
 
                             <button
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 border border-white/10 rounded-xl text-white hover:bg-slate-700 hover:border-white/20 transition-all shadow-lg"
-                                onClick={() => alert('Содироти Excel тез вақт омода мешавад')}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 border border-white/10 rounded-xl text-white hover:bg-slate-700 hover:border-white/20 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={handleExportToExcel}
+                                disabled={exportLoading || loading}
                             >
-                                <Download className="w-4 h-4" />
+                                {exportLoading
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : <Download className="w-4 h-4" />
+                                }
                                 Содироти Excel
                             </button>
                         </div>
@@ -484,7 +598,7 @@ export default function AccountingPage() {
                                 className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-400 hover:text-white transition-colors"
                             >
                                 <Filter className="w-3 h-3" />
-                                Reset
+                                Тоза кардан
                             </button>
                         </div>
                     </div>
