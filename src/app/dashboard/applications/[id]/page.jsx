@@ -359,6 +359,27 @@ export default function ApplicationDetailPage() {
     const handleStatusChange = async (newStatus) => {
         try {
             await api.patch(`/forms/${id}/`, { status: newStatus });
+
+            // Агар статус "approved" шавад → пардохтро автоматӣ "Пардохт шуд" мекунем
+            if (newStatus === 'approved') {
+                const today = new Date().toISOString().split('T')[0];
+                const existingPaymentId = form?.payment?.id;
+                if (existingPaymentId) {
+                    // Пардохти мавҷуда → навсозӣ
+                    await api.patch(`/payments/${existingPaymentId}/`, {
+                        payment_status: 'paid',
+                        payment_date: form.payment.payment_date || today,
+                    });
+                } else {
+                    // Пардохти нав эҷод мекунем
+                    await api.post('/payments/', {
+                        form: id,
+                        payment_status: 'paid',
+                        payment_date: today,
+                    });
+                }
+            }
+
             fetchData();
         } catch (err) {
             console.error(err);
