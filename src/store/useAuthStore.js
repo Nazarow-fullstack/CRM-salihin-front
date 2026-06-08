@@ -13,17 +13,13 @@ const useAuthStore = create(
             error: null,
 
             login: async (username, password) => {
-                console.log("Attempting login with:", username);
                 set({ isLoading: true, error: null });
 
                 try {
                     const response = await api.post('/auth/login/', { username, password });
 
-                    console.log("Login Success Data:", response.data);
-
                     const { access, refresh, user } = response.data;
 
-                    // Save strict keys to localStorage as requested
                     localStorage.setItem('access', access);
                     localStorage.setItem('refresh', refresh);
                     localStorage.setItem('user', JSON.stringify(user));
@@ -39,19 +35,15 @@ const useAuthStore = create(
 
                     return true;
                 } catch (err) {
-                    console.error("LOGIN ERROR FULL OBJECT:", err);
-                    console.error("Response Data:", err.response?.data);
-                    console.error("Response Status:", err.response?.status);
-
-                    let errorMessage = err.response?.data?.detail || "Ошибка входа";
+                    let errorMessage = err.response?.data?.detail || 'Хатогии воридшавӣ';
 
                     if (err.response) {
                         if (err.response.status === 401) {
-                            errorMessage = "Неверное имя пользователя или пароль";
+                            errorMessage = 'Номи корбар ё парол нодуруст';
                         } else if (err.response.status === 404) {
-                            errorMessage = "Сервер авторизации не найден (404)";
+                            errorMessage = 'Сервери тасдиқ ёфт нашуд (404)';
                         } else if (err.response.status === 500) {
-                            errorMessage = "Ошибка сервера (500)";
+                            errorMessage = 'Хатогии сервер (500)';
                         }
                     }
 

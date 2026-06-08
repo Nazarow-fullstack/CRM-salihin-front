@@ -16,6 +16,14 @@ import useAuthStore from '@/store/useAuthStore';
 import useAppStore from '@/store/useAppStore';
 import { Button } from '@/components/ui/button';
 
+const ROLE_LABELS = {
+    superuser: 'Супер Админ',
+    admin: 'Админ',
+    operator: 'Оператор',
+    reviewer: 'Кумита',
+    accountant: 'Бухгалтер',
+};
+
 export default function Header({ setIsSidebarOpen }) {
     const { user, logout } = useAuthStore();
     const { notifications } = useAppStore();
@@ -95,8 +103,8 @@ export default function Header({ setIsSidebarOpen }) {
                     <div className="absolute right-0 top-full mt-2 w-80 translate-y-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-200 z-50">
                         <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white/95 dark:bg-[#1e293b]/95 backdrop-blur-xl shadow-2xl overflow-hidden">
                             <div className="px-4 py-3 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
-                                <h3 className="font-semibold text-slate-700 dark:text-slate-200 text-sm">Notifications</h3>
-                                <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full">{notifications.length} New</span>
+                                <h3 className="font-semibold text-slate-700 dark:text-slate-200 text-sm">Огоҳиномаҳо</h3>
+                                <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full">{notifications.length} Нав</span>
                             </div>
                             <div className="max-h-[300px] overflow-y-auto">
                                 {notifications.length > 0 ? (
@@ -123,13 +131,13 @@ export default function Header({ setIsSidebarOpen }) {
                                     ))
                                 ) : (
                                     <div className="px-4 py-8 text-center text-slate-500 text-sm">
-                                        No new notifications
+                                        Огоҳиномаи нав нест
                                     </div>
                                 )}
                             </div>
                             {notifications.length > 0 && (
                                 <div className="px-4 py-2 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5 text-center">
-                                    <button className="text-xs text-blue-400 hover:text-blue-300 font-medium">Mark all as read</button>
+                                    <button className="text-xs text-blue-400 hover:text-blue-300 font-medium">Ҳамаро хондашуда нишон деҳ</button>
                                 </div>
                             )}
                         </div>
@@ -144,7 +152,7 @@ export default function Header({ setIsSidebarOpen }) {
                     >
                         <div className="flex flex-col items-end text-xs hidden sm:flex">
                             <span className="font-semibold text-slate-700 dark:text-slate-200">{user?.username || 'Admin'}</span>
-                            <span className="text-slate-500 dark:text-slate-400">Manager</span>
+                            <span className="text-slate-500 dark:text-slate-400">{ROLE_LABELS[user?.role] || 'Корбар'}</span>
                         </div>
 
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 text-slate-700 dark:text-slate-200 shadow-inner border border-slate-300 dark:border-white/5">
@@ -164,11 +172,14 @@ export default function Header({ setIsSidebarOpen }) {
                             />
                             <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-slate-200 dark:border-white/10 bg-white/95 dark:bg-[#1e293b]/90 backdrop-blur-xl p-2 text-slate-700 dark:text-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                                 <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    My Account
+                                    Ҳисоби ман
                                 </div>
-                                <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
+                                <button
+                                    onClick={() => { setIsUserOpen(false); router.push('/dashboard/profile'); }}
+                                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                                >
                                     <UserIcon className="h-4 w-4 text-blue-400" />
-                                    Profile
+                                    Профил
                                 </button>
                                 <div className="h-px bg-slate-200 dark:bg-white/10 my-1" />
                                 <button
@@ -176,7 +187,7 @@ export default function Header({ setIsSidebarOpen }) {
                                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                                 >
                                     <LogOut className="h-4 w-4" />
-                                    Logout
+                                    Баромад
                                 </button>
                             </div>
                         </>
