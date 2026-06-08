@@ -33,6 +33,7 @@ export default function CommitteePage() {
     const [forms, setForms] = useState([]);
     const [pollReasons, setPollReasons] = useState({}); // { [formId]: reason }
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
 
     // Filters & Pagination
     const [search, setSearch] = useState('');
@@ -46,6 +47,7 @@ export default function CommitteePage() {
     // --- Data Fetching ---
     const fetchData = async () => {
         setLoading(true);
+        setFetchError(null);
         try {
             // 1. Bütün səhifələr — server pagination yalnız 10 sətir qaytarır
             const formsData = await fetchAllFormsPages(api, { status: 'under_review' });
@@ -75,7 +77,7 @@ export default function CommitteePage() {
                 setPollReasons(newPollReasons);
             }
         } catch (error) {
-            console.error("Failed to fetch committee data", error);
+            setFetchError('Маълумот бор нашуд. Лутфан саҳифаро навсозӣ кунед.');
         } finally {
             setLoading(false);
         }
@@ -174,6 +176,21 @@ export default function CommitteePage() {
         return (
             <div className="flex items-center justify-center min-h-screen bg-slate-950">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+        );
+    }
+
+    if (fetchError) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <XCircle className="w-12 h-12 text-red-400" />
+                <p className="text-slate-300 text-lg">{fetchError}</p>
+                <button
+                    onClick={fetchData}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors"
+                >
+                    Дубора кӯшиш кунед
+                </button>
             </div>
         );
     }
