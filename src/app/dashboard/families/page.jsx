@@ -11,8 +11,10 @@ import {
     UserCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getForms } from '@/services/api';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
+import { fetchAllFormsPages } from '@/lib/formsListApi';
+import api from '@/lib/axios';
+import { XCircle } from 'lucide-react';
 
 // --- CONFIGURATION ---
 const STATUS_CONFIG = {
@@ -34,16 +36,19 @@ export default function FamiliesPage() {
     const router = useRouter();
     const [forms, setForms] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
 
-    // DATA FETCHING
+    // DATA FETCHING — fetchAllFormsPages тамоми саҳифаҳоро мегирад
     const fetchData = async () => {
         setLoading(true);
+        setFetchError(null);
         try {
-            const response = await getForms();
-            setForms(Array.isArray(response.data) ? response.data : []);
+            const allForms = await fetchAllFormsPages(api, {});
+            setForms(Array.isArray(allForms) ? allForms : []);
         } catch (error) {
+            setFetchError('Маълумот бор нашуд. Лутфан дубора кӯшиш кунед.');
         } finally {
             setLoading(false);
         }
@@ -100,6 +105,21 @@ export default function FamiliesPage() {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+        );
+    }
+
+    if (fetchError) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <XCircle className="w-12 h-12 text-red-400" />
+                <p className="text-slate-400 text-lg">{fetchError}</p>
+                <button
+                    onClick={fetchData}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors"
+                >
+                    Дубора кӯшиш кунед
+                </button>
             </div>
         );
     }

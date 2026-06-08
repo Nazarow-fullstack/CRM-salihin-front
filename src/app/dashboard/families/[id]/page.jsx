@@ -35,7 +35,7 @@ function calculateAge(dateString) {
 const formatDate = (dateStr) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
-    return d.toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' });
+    return d.toLocaleDateString('tg-TJ', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
 const STATUS_LABELS = {
