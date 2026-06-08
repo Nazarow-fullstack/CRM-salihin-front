@@ -11,7 +11,8 @@ import { Loader2 } from 'lucide-react';
 export default function DashboardLayout({ children }) {
     const router = useRouter();
     const { token, isLoading: authLoading } = useAuthStore();
-    const { initPolling, stopPolling } = useAppStore();
+    const initPolling = useAppStore((s) => s.initPolling);
+    const stopPolling = useAppStore((s) => s.stopPolling);
     const [mounted, setMounted] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 

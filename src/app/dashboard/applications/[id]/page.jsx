@@ -17,6 +17,7 @@ import api from '@/lib/axios';
 import { EditFormDialog, EditPollDialog } from '@/components/EditDialogs';
 import { formatFormDisplayName } from '@/lib/formDisplayName';
 import { FORMS_PAGE_SIZE } from '@/lib/formsListApi';
+import { clearCache } from '@/utils/apiCache';
 
 // Status Constants
 const STATUS_LABELS = {
@@ -380,6 +381,8 @@ export default function ApplicationDetailPage() {
                 }
             }
 
+            // Families sahifasining cacheni tozalaymiz — eski ma'lumot ko'rinmasin
+            clearCache('/forms/');
             fetchData();
         } catch (err) {
             console.error(err);
