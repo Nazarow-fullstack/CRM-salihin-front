@@ -34,7 +34,6 @@ export default function ProfilePage() {
             setProfile(response.data);
             setEditData(response.data);
         } catch (error) {
-            console.error("Failed to load profile", error);
             setMessage({ type: 'error', text: 'Маълумоти профил бор нашуд' });
         } finally {
             setLoading(false);
@@ -49,7 +48,6 @@ export default function ProfilePage() {
             setMessage({ type: 'success', text: 'Профил бомуваффақият нав карда шуд' });
             await loadProfile();
         } catch (error) {
-            console.error("Failed to update profile", error);
             setMessage({ type: 'error', text: 'Профил нав нашуд' });
         } finally {
             setLoading(false);
@@ -69,7 +67,6 @@ export default function ProfilePage() {
             setMessage({ type: 'success', text: 'Парол бомуваффақият иваз шуд' });
             setPwData({ old_password: '', new_password: '', new_password2: '' });
         } catch (error) {
-            console.error("Password change failed", error);
             const errorMsg = error.response?.data?.old_password ||
                 error.response?.data?.new_password ||
                 'Паролро иваз кардан нашуд. Пароли кӯҳнаро санҷед.';

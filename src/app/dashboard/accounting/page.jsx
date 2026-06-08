@@ -143,7 +143,6 @@ export default function AccountingPage() {
             }
         } catch (error) {
             if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') return;
-            console.error("Failed to fetch accounting data", error);
             setLoading(false);
         }
     }, [buildAccountingQueryParams, buildAccountingStatsParams]);
@@ -208,7 +207,6 @@ export default function AccountingPage() {
             setPaymentModal({ open: false, data: null });
             fetchData();
         } catch (error) {
-            console.error("Payment failed", error);
             alert('Пардохт нашуд. Лутфан дубора кӯшиш кунед.');
         } finally {
             setIsSubmitting(false);
@@ -318,7 +316,6 @@ export default function AccountingPage() {
             const fileName = `accounting_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(wb, fileName);
         } catch (err) {
-            console.error('Excel export failed', err);
             alert('Содирот нашуд. Лутфан дубора кӯшиш кунед.');
         } finally {
             setExportLoading(false);
@@ -337,7 +334,6 @@ export default function AccountingPage() {
             const res = await api.get(`/forms/${form.id}/`);
             fullForm = res.data ?? form;
         } catch (err) {
-            console.error('PDF: tam forma yüklənmədi', err);
         }
 
         const poll = fullForm.polls?.[0];

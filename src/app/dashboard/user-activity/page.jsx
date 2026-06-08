@@ -96,7 +96,6 @@ export default function UserActivityPage() {
             const response = await getUserActivityStats({ period });
             setUserStats(response.data.users || []);
         } catch (err) {
-            console.error('Error loading user stats:', err);
             setError('Ҳангоми боркунии маълумот хатогӣ рӯй дод.');
         } finally {
             setLoading(false);

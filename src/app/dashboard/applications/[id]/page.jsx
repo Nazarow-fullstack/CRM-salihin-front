@@ -325,7 +325,6 @@ export default function ApplicationDetailPage() {
             setRelatedForms(Array.isArray(relRaw) ? relRaw : relRaw?.results ?? []);
             setRelatedVisibleCount(FORMS_PAGE_SIZE);
         } catch (err) {
-            console.error(err);
             if (!isStale()) {
                 setError('Маълумоти ариза бор нашуд.');
             }
@@ -385,7 +384,6 @@ export default function ApplicationDetailPage() {
             clearCache('/forms/');
             fetchData();
         } catch (err) {
-            console.error(err);
             alert('Вазъият тағйир нашуд. Лутфан дубора кӯшиш кунед.');
         }
     };
@@ -417,7 +415,6 @@ export default function ApplicationDetailPage() {
             setAmountForAccountant('');
             fetchData();
         } catch (err) {
-            console.error(err);
             alert('Хатогӣ: вазъият ва маблағ сабт нашуд');
         } finally {
             setAmountSubmitting(false);
@@ -446,7 +443,6 @@ export default function ApplicationDetailPage() {
 
             await api.post('/form-notes/', { form: id, note: newNote });
         } catch (err) {
-            console.error(err);
             alert('Шарҳ илова нашуд. Лутфан дубора кӯшиш кунед.');
         } finally {
             setIsSubmittingNote(false);
@@ -532,7 +528,6 @@ export default function ApplicationDetailPage() {
                 });
                 await fetchData();
             } catch (err) {
-                console.error(err);
                 alert('Нест кардани ҳуҷҷат муяссар нашуд');
             } finally {
                 setDeletingDocumentId(null);
@@ -948,7 +943,6 @@ export default function ApplicationDetailPage() {
                                                 }
                                                 fetchData();
                                             } catch (err) {
-                                                console.error(err);
                                                 alert('Ҳуҷҷат бор нашуд. Лутфан дубора кӯшиш кунед.');
                                             }
                                         }}
@@ -976,7 +970,6 @@ export default function ApplicationDetailPage() {
                                                 }
                                                 fetchData();
                                             } catch (err) {
-                                                console.error(err);
                                                 alert('Ҳуҷҷат бор нашуд. Лутфан дубора кӯшиш кунед.');
                                             }
                                         }}

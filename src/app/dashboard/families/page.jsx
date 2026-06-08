@@ -44,7 +44,6 @@ export default function FamiliesPage() {
             const response = await getForms();
             setForms(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
-            console.error("Failed to fetch forms", error);
         } finally {
             setLoading(false);
         }

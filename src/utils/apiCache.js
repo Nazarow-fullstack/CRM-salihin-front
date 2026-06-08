@@ -23,7 +23,6 @@ export const getCachedData = (key, params = {}) => {
 
         return data;
     } catch (error) {
-        console.error('Error reading from cache:', error);
         return null;
     }
 };
@@ -38,7 +37,6 @@ export const setCachedData = (key, params, data, ttl = DEFAULT_TTL) => {
         };
         localStorage.setItem(cacheKey, JSON.stringify(cacheItem));
     } catch (error) {
-        console.error('Error writing to cache:', error);
     }
 };
 
@@ -53,6 +51,5 @@ export const clearCache = (key) => {
         }
         keysToRemove.forEach(k => localStorage.removeItem(k));
     } catch (error) {
-        console.error('Error clearing cache:', error);
     }
 };

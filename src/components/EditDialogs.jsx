@@ -63,7 +63,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
         place_of_residence: data.place_of_residence || null,
     });
 
-    // Yalnızca POST (yeni oluşturma) için — null/boş alanları filtreler
+    // Танҳо барои POST (сохтани нав) — майдонҳои холӣ/null филтр мешаванд
     const compactPayload = (payload) =>
         Object.fromEntries(
             Object.entries(payload).filter(([, v]) => v !== '' && v !== null && v !== undefined)
@@ -162,7 +162,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                 )
             );
 
-            // Mevcut çalışanları güncelle — 404 ise yeni oluştur (stale ID sorunu)
+            // Аъзои мавҷударо навсозӣ кун — агар 404 бошад, нав эҷод кун (мушкили ID-и кӯҳна)
             await Promise.all(
                 validWorkers
                     .filter(w => w.id && oldWorkerIds.has(w.id))
@@ -237,7 +237,6 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
             onClose();
             onSuccess?.();
         } catch (err) {
-            console.error('Error updating poll:', err);
             const backendError =
                 err.response?.data?.detail ||
                 Object.values(err.response?.data || {}).flat().join(' ') ||
@@ -594,7 +593,6 @@ export function EditFormDialog({ isOpen, onClose, form, onSuccess }) {
             onSuccess?.();
             onClose();
         } catch (err) {
-            console.error('Error updating form:', err);
             const backendError =
                 err.response?.data?.detail ||
                 Object.values(err.response?.data || {}).flat().join(' ') ||

@@ -75,7 +75,6 @@ export default function UsersPage() {
             const response = await getUsers();
             setUsers(response.data || []);
         } catch (error) {
-            console.error("Failed to load users", error);
             setError('Ҳангоми боркунии корбарон хатогӣ рӯй дод.');
         } finally {
             setLoading(false);
@@ -87,7 +86,6 @@ export default function UsersPage() {
             const response = await getOnlineUsers();
             setOnlineUsers(response.data.users || []);
         } catch (error) {
-            console.error("Failed to load online users", error);
         }
     }, []);
 
@@ -165,7 +163,6 @@ export default function UsersPage() {
             await loadUsers();
             handleCloseUserModal();
         } catch (error) {
-            console.error("Failed to save user", error);
             setError('Ҳангоми сабти корбар хатогӣ рӯй дод.');
         } finally {
             setIsSubmitting(false);
@@ -180,7 +177,6 @@ export default function UsersPage() {
             await deleteUser(id);
             await loadUsers();
         } catch (error) {
-            console.error("Delete failed", error);
             setError('Ҳангоми ҳазфи корбар хатогӣ рӯй дод.');
         } finally {
             setDeleteLoading(false);

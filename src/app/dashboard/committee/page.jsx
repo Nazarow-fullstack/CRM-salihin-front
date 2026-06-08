@@ -154,13 +154,7 @@ export default function CommitteePage() {
             setVoting(null);
             fetchData();
         } catch (error) {
-            console.error("Failed to submit vote", error);
-            if (error.response) {
-                console.error("Error response data:", error.response.data);
-                alert(`Овоздиҳӣ нашуд: ${JSON.stringify(error.response.data)}`);
-            } else {
-                alert('Овоздиҳӣ нашуд. Лутфан дубора кӯшиш кунед.');
-            }
+            alert('Овоздиҳӣ нашуд. Лутфан дубора кӯшиш кунед.');
         } finally {
             setIsSubmitting(false);
         }
@@ -285,7 +279,7 @@ export default function CommitteePage() {
                                     <tr>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Аризадиҳанда</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Сабаб (Poll)</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Сабаби овоздиҳӣ</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Минтақа</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Сана</th>
                                         <th className="px-6 py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Амалҳо</th>
@@ -341,7 +335,13 @@ export default function CommitteePage() {
                                                         {new Date(item.created_at).toLocaleDateString()}
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
-
+                                                        <button
+                                                            onClick={(e) => openVoteModal(e, item)}
+                                                            className="inline-flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg transition-all"
+                                                        >
+                                                            <Gavel className="w-4 h-4" />
+                                                            Овоздиҳӣ
+                                                        </button>
                                                     </td>
                                                 </motion.tr>
                                             ))

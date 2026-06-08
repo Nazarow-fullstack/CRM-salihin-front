@@ -92,7 +92,6 @@ export default function FamilyDetailPage() {
                 byId.set(formRes.data.id, formRes.data);
                 setAllForms(Array.from(byId.values()));
             } catch (err) {
-                console.error('Failed to fetch family data:', err);
                 setError('Маълумот гирифта нашуд');
             } finally {
                 setLoading(false);

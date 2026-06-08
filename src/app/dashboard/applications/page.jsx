@@ -224,7 +224,6 @@ export default function ApplicationsPage() {
                 }
             } catch (error) {
                 if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') return;
-                console.error('Failed to fetch forms', error);
             } finally {
                 if (!ac.signal.aborted) setLoading(false);
             }
@@ -311,7 +310,6 @@ export default function ApplicationsPage() {
             const fileName = `applications_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(wb, fileName);
         } catch (error) {
-            console.error('Export failed', error);
         } finally {
             setExportLoading(false);
         }
@@ -342,7 +340,6 @@ export default function ApplicationsPage() {
             setListPage(1);
             setRefreshKey((k) => k + 1);
         } catch (error) {
-            console.error("Failed to create application", error);
             alert('Хатогӣ ҳангоми сабт. Майдонҳоро санҷед.');
         } finally {
             setIsSubmitting(false);
@@ -616,7 +613,7 @@ export default function ApplicationsPage() {
                             ) : displayRows.length === 0 ? (
                                 <tr>
                                     <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
-                                     Приложения, соответствующие вашим фильтрам, не найдены.
+                                     Аризаҳое, ки ба филтрҳои шумо мувофиқанд, ёфт нашуданд.
                                     </td>
                                 </tr>
                             ) : (

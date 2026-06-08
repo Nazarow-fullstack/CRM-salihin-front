@@ -50,9 +50,13 @@ export default function DashboardPage() {
         monthlyData: []
     });
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(false);
+    const [retryKey, setRetryKey] = useState(0);
 
     useEffect(() => {
         const fetchData = async () => {
+            setLoading(true);
+            setFetchError(false);
             try {
                 const res = await api.get('/dashboard-stats/');
                 setStats({
@@ -60,13 +64,13 @@ export default function DashboardPage() {
                     monthlyData: res.data.monthlyData || []
                 });
             } catch (err) {
-                console.error("Failed to fetch dashboard stats", err);
+                setFetchError(true);
             } finally {
                 setLoading(false);
             }
         };
         fetchData();
-    }, []);
+    }, [retryKey]);
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -89,6 +93,21 @@ export default function DashboardPage() {
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                     <div key={i} className="h-32 bg-slate-800 rounded-xl" />
                 ))}
+            </div>
+        );
+    }
+
+    if (fetchError) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <XCircle className="w-12 h-12 text-red-400" />
+                <p className="text-slate-400 text-lg">Маълумот бор нашуд</p>
+                <button
+                    onClick={() => setRetryKey(k => k + 1)}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-colors"
+                >
+                    Дубора кӯшиш кунед
+                </button>
             </div>
         );
     }

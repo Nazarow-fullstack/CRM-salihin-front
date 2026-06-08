@@ -18,7 +18,6 @@ const useAppStore = create((set, get) => ({
             const response = await api.get('/online-users/');
             set({ onlineUsers: response.data });
         } catch (error) {
-            console.error("Failed to fetch online users", error);
         }
     },
 
@@ -108,7 +107,6 @@ const useAppStore = create((set, get) => ({
             set({ notifications, recentActivity: recent });
 
         } catch (error) {
-            console.error("Failed to fetch notifications", error);
         }
     },
 
