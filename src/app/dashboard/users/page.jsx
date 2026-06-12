@@ -53,12 +53,14 @@ const STATUS_LABELS = {
 };
 const ROLE_LABELS = { operator: 'Оператор', reviewer: 'Кумита', accountant: 'Бухгалтер', superuser: 'Супер Админ', admin: 'Админ' };
 const ROLE_COLORS = {
-    operator: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' },
-    reviewer: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
-    accountant: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' },
-    superuser: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
-    admin: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
+    operator:  { bg: 'bg-blue-500/10',    text: 'text-blue-400',    border: 'border-blue-500/20' },
+    reviewer:  { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
+    accountant:{ bg: 'bg-purple-500/10',  text: 'text-purple-400',  border: 'border-purple-500/20' },
+    superuser: { bg: 'bg-amber-500/10',   text: 'text-amber-400',   border: 'border-amber-500/20' },
+    admin:     { bg: 'bg-red-500/10',     text: 'text-red-400',     border: 'border-red-500/20' },
 };
+const getRoleLabel  = (role) => ROLE_LABELS[role] || ROLE_LABELS[role?.toLowerCase()] || role;
+const getRoleColors = (role) => ROLE_COLORS[role] || ROLE_COLORS[role?.toLowerCase()] || ROLE_COLORS.operator;
 const STATUS_COLORS = {
     approved: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
     rejected: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
@@ -480,7 +482,7 @@ export default function UsersPage() {
                                 ) : viewMode === 'chart' ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                         {userStats.map((us, idx) => {
-                                            const rc = ROLE_COLORS[us.role] || ROLE_COLORS.operator;
+                                            const rc = getRoleColors(us.role);
                                             return (
                                                 <motion.div key={us.user_id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
                                                     className="bg-slate-900 border border-white/10 rounded-2xl overflow-hidden hover:border-blue-500/30 transition-all">
@@ -493,7 +495,7 @@ export default function UsersPage() {
                                                                 <h3 className="text-white font-bold truncate">{us.full_name}</h3>
                                                                 <p className="text-xs text-slate-400">@{us.username}</p>
                                                             </div>
-                                                            <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${rc.bg} ${rc.text} ${rc.border}`}>{ROLE_LABELS[us.role] || us.role}</span>
+                                                            <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${rc.bg} ${rc.text} ${rc.border}`}>{getRoleLabel(us.role)}</span>
                                                         </div>
                                                     </div>
                                                     <div className="p-4 space-y-3">
@@ -526,7 +528,7 @@ export default function UsersPage() {
                                 ) : (
                                     <div className="space-y-4">
                                         {userStats.map((us, idx) => {
-                                            const rc = ROLE_COLORS[us.role] || ROLE_COLORS.operator;
+                                            const rc = getRoleColors(us.role);
                                             const isExpanded = expandedUsers[us.user_id];
                                             return (
                                                 <motion.div key={us.user_id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
@@ -544,7 +546,7 @@ export default function UsersPage() {
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-3">
-                                                                <span className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${rc.bg} ${rc.text} ${rc.border}`}>{ROLE_LABELS[us.role] || us.role}</span>
+                                                                <span className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${rc.bg} ${rc.text} ${rc.border}`}>{getRoleLabel(us.role)}</span>
                                                                 <button onClick={() => setExpandedUsers(p => ({ ...p, [us.user_id]: !p[us.user_id] }))}
                                                                     className="p-2 hover:bg-white/5 rounded-lg transition-colors">
                                                                     {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
