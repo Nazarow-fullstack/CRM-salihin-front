@@ -6,12 +6,11 @@ import {
     Lock,
     Shield,
     Loader2,
-    Save,
     CheckCircle,
     AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getProfile, updateProfile, changePassword } from '@/services/api';
+import { getProfile, changePassword } from '@/services/api';
 
 export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
@@ -19,7 +18,7 @@ export default function ProfilePage() {
     const [editData, setEditData] = useState({});
 
     // Password State
-    const [pwData, setPwData] = useState({ old_password: '', new_password: '', new_password2: '' });
+    const [pwData, setPwData] = useState({ new_password: '', new_password2: '' });
     const [pwLoading, setPwLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' }); // success/error
 
@@ -40,20 +39,6 @@ export default function ProfilePage() {
         }
     };
 
-    const handleProfileUpdate = async () => {
-        setLoading(true);
-        setMessage({ type: '', text: '' });
-        try {
-            await updateProfile(editData);
-            setMessage({ type: 'success', text: 'Профил бомуваффақият нав карда шуд' });
-            await loadProfile();
-        } catch (error) {
-            setMessage({ type: 'error', text: 'Профил нав нашуд' });
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handlePasswordChange = async () => {
         if (pwData.new_password !== pwData.new_password2) {
             setMessage({ type: 'error', text: 'Паролҳои нав мувофиқат намекунанд' });
@@ -65,11 +50,11 @@ export default function ProfilePage() {
         try {
             await changePassword(pwData);
             setMessage({ type: 'success', text: 'Парол бомуваффақият иваз шуд' });
-            setPwData({ old_password: '', new_password: '', new_password2: '' });
+            setPwData({ new_password: '', new_password2: '' });
         } catch (error) {
-            const errorMsg = error.response?.data?.old_password ||
-                error.response?.data?.new_password ||
-                'Паролро иваз кардан нашуд. Пароли кӯҳнаро санҷед.';
+            const errorMsg = error.response?.data?.new_password ||
+                error.response?.data?.detail ||
+                'Паролро иваз кардан нашуд. Лутфан дубора кӯшиш кунед.';
             setMessage({ type: 'error', text: errorMsg });
         } finally {
             setPwLoading(false);
@@ -138,29 +123,18 @@ export default function ProfilePage() {
                                 <input
                                     type="text"
                                     value={editData?.username || ''}
-                                    onChange={e => setEditData({ ...editData, username: e.target.value })}
-                                    className="w-full px-4 py-3 bg-slate-950/50 border border-white/10 rounded-xl text-white focus:ring-1 focus:ring-blue-500"
-                                    disabled // Usually username is immutable or needs special perm
+                                    readOnly
+                                    className="w-full px-4 py-3 bg-slate-950/50 border border-white/10 rounded-xl text-white cursor-default opacity-70"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 uppercase mb-2">Email</label>
+                                <label className="block text-xs font-medium text-slate-400 uppercase mb-2">Рол</label>
                                 <input
-                                    type="email"
-                                    value={editData?.email || ''}
-                                    onChange={e => setEditData({ ...editData, email: e.target.value })}
-                                    className="w-full px-4 py-3 bg-slate-950/50 border border-white/10 rounded-xl text-white focus:ring-1 focus:ring-blue-500"
+                                    type="text"
+                                    value={editData?.role || ''}
+                                    readOnly
+                                    className="w-full px-4 py-3 bg-slate-950/50 border border-white/10 rounded-xl text-white cursor-default opacity-70"
                                 />
-                            </div>
-
-                            <div className="pt-4">
-                                <button
-                                    onClick={handleProfileUpdate}
-                                    disabled={loading}
-                                    className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                                >
-                                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5" /> Сабт кардан</>}
-                                </button>
                             </div>
                         </div>
                     </motion.div>
@@ -182,15 +156,6 @@ export default function ProfilePage() {
                         </div>
 
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-medium text-slate-400 uppercase mb-2">Пароли кӯҳна</label>
-                                <input
-                                    type="password"
-                                    value={pwData.old_password}
-                                    onChange={e => setPwData({ ...pwData, old_password: e.target.value })}
-                                    className="w-full px-4 py-3 bg-slate-950/50 border border-white/10 rounded-xl text-white focus:ring-1 focus:ring-amber-500"
-                                />
-                            </div>
                             <div>
                                 <label className="block text-xs font-medium text-slate-400 uppercase mb-2">Пароли нав</label>
                                 <input
