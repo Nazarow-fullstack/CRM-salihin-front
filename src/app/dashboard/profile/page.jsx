@@ -40,6 +40,14 @@ export default function ProfilePage() {
     };
 
     const handlePasswordChange = async () => {
+        if (!pwData.new_password.trim()) {
+            setMessage({ type: 'error', text: 'Пароли нав ворид кунед' });
+            return;
+        }
+        if (pwData.new_password.length < 6) {
+            setMessage({ type: 'error', text: 'Парол бояд ҳадди аққал 6 аломат дошта бошад' });
+            return;
+        }
         if (pwData.new_password !== pwData.new_password2) {
             setMessage({ type: 'error', text: 'Паролҳои нав мувофиқат намекунанд' });
             return;
