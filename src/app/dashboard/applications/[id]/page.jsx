@@ -662,7 +662,7 @@ export default function ApplicationDetailPage() {
                                 <p className="text-sm text-white">{reasonNote.note}</p>
                                 {!isRejected && form?.approved_amount && (
                                     <p className="text-sm font-semibold text-teal-300 mt-1">
-                                        Маблағи дархостшуда: {Number(form.approved_amount).toLocaleString()} сомонӣ
+                                        Маблағи тасдиқшуда: {Number(form.approved_amount).toLocaleString()} сомонӣ
                                     </p>
                                 )}
                                 <p className="text-xs text-slate-500 mt-1">
@@ -1290,7 +1290,7 @@ export default function ApplicationDetailPage() {
                             </div>
                             {reasonModalTarget === 'to_accountant' && form?.status === 'under_review' && (
                                 <div>
-                                    <label className="block text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Маблағи дархостшуда (сомонӣ)</label>
+                                    <label className="block text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Маблағи тасдиқшуда (сомонӣ)</label>
                                     <input
                                         type="number"
                                         min="0"

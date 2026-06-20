@@ -23,7 +23,7 @@ const navItems = [
     { name: 'Дархостҳо',   href: '/dashboard/applications', icon: Grid },
     { name: 'Оилаҳо',      href: '/dashboard/families',   icon: Users },
     { name: 'Кумита',      href: '/dashboard/committee',  icon: Users },
-    { name: 'Бухгалтерия', href: '/dashboard/accounting', icon: CreditCard },
+    { name: 'Бухгалтерия', href: '/dashboard/accounting', icon: CreditCard, roles: ['superuser', 'accountant'] },
     { name: 'Корбар',      href: '/dashboard/users',      icon: UserCog },
 ];
 
@@ -59,7 +59,7 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
 
             {/* Navigation */}
             <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-                {navItems.map((item) => {
+                {navItems.filter(item => !item.roles || item.roles.includes(user?.role)).map((item) => {
                     const isActive = item.href === '/dashboard'
                         ? pathname === '/dashboard'
                         : pathname === item.href || pathname.startsWith(`${item.href}/`);
