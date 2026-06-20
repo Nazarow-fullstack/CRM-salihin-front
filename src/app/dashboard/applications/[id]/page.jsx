@@ -416,7 +416,8 @@ export default function ApplicationDetailPage() {
         setReasonSubmitting(true);
         try {
             // Save note first
-            await api.post('/form-notes/', { form: id, note: reasonText.trim() });
+            const noteType = reasonModalTarget === 'rejected' ? 'rejection_reason' : 'accountant_reason';
+            await api.post('/form-notes/', { form: id, note: reasonText.trim(), note_type: noteType });
 
             // If to_accountant and currently under_review → open amount modal next
             if (reasonModalTarget === 'to_accountant' && form?.status === 'under_review') {
@@ -652,6 +653,27 @@ export default function ApplicationDetailPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Rejection / Accountant reason banner */}
+                {(() => {
+                    const rejectionNote = [...(form?.notes || [])].reverse().find(n => n.note_type === 'rejection_reason');
+                    const accountantNote = [...(form?.notes || [])].reverse().find(n => n.note_type === 'accountant_reason');
+                    const reasonNote = form?.status === 'rejected' ? rejectionNote : (form?.status === 'to_accountant' ? accountantNote : null);
+                    if (!reasonNote) return null;
+                    const isRejected = reasonNote.note_type === 'rejection_reason';
+                    return (
+                        <div className={`flex items-start gap-3 px-5 py-4 rounded-2xl border mb-2 ${isRejected ? 'bg-red-500/10 border-red-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                            <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isRejected ? 'text-red-400' : 'text-amber-400'}`} />
+                            <div>
+                                <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isRejected ? 'text-red-400' : 'text-amber-400'}`}>
+                                    {isRejected ? 'Сабаби рад кардан' : 'Сабаби ба бухгалтерия фиристодан'}
+                                </p>
+                                <p className="text-sm text-white">{reasonNote.note}</p>
+                                <p className="text-xs text-slate-500 mt-1">{reasonNote.user_username} · {new Date(reasonNote.created_at).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Content (Left Col) */}
@@ -918,7 +940,7 @@ export default function ApplicationDetailPage() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#475569 transparent' }}>
-                                {form.notes?.map((note, i) => (
+                                {form.notes?.filter(n => n.note_type === 'note' || !n.note_type).map((note, i) => (
                                     <div key={note.id || i} className="flex gap-3 text-sm">
                                         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center shrink-0">
                                             <User className="w-4 h-4 text-blue-400" />
@@ -941,7 +963,7 @@ export default function ApplicationDetailPage() {
                                     </div>
                                 ))}
 
-                                {(!form.notes || form.notes.length === 0) && (
+                                {(!form.notes || form.notes.filter(n => n.note_type === 'note' || !n.note_type).length === 0) && (
                                     <p className="text-sm text-slate-500">Ҳоло ягон шарҳ нест.</p>
                                 )}
                             </div>
