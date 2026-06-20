@@ -15,6 +15,7 @@ import {
     CreditCard,
     X,
     UserCog,
+    Settings,
 } from 'lucide-react';
 
 const navItems = [
@@ -28,7 +29,7 @@ const navItems = [
 
 export default function Sidebar({ isOpen = false, setIsOpen }) {
     const pathname = usePathname();
-    const { logout } = useAuthStore();
+    const { logout, user } = useAuthStore();
     const { onlineUsers } = useAppStore();
 
     // Close mobile sidebar on route change
@@ -58,7 +59,7 @@ export default function Sidebar({ isOpen = false, setIsOpen }) {
 
             {/* Navigation */}
             <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-                {navItems.map((item) => {
+                {[...navItems, ...(user?.role === 'superuser' ? [{ name: 'Танзимот', href: '/dashboard/settings', icon: Settings }] : [])].map((item) => {
                     const isActive = item.href === '/dashboard'
                         ? pathname === '/dashboard'
                         : pathname === item.href || pathname.startsWith(`${item.href}/`);
