@@ -107,7 +107,7 @@ export default function UsersPage() {
     const [search, setSearch] = useState('');
     const [error, setError] = useState(null);
     const [userModal, setUserModal] = useState({ open: false, data: null });
-    const [formData, setFormData] = useState({ username: '', password: '', role: 'operator', status: 'active', allowed_statuses: [] });
+    const [formData, setFormData] = useState({ username: '', password: '', role: 'operator', status: 'active', allowed_statuses: [], allowed_transitions: {} });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
@@ -172,8 +172,8 @@ export default function UsersPage() {
     const handleOpenUserModal = (user = null) => {
         setUserModal({ open: true, data: user });
         setFormData(user
-            ? { username: user.username, password: '', role: user.role, status: user.is_active ? 'active' : 'inactive', allowed_statuses: user.allowed_statuses || [] }
-            : { username: '', password: '', role: 'operator', status: 'active', allowed_statuses: [] }
+            ? { username: user.username, password: '', role: user.role, status: user.is_active ? 'active' : 'inactive', allowed_statuses: user.allowed_statuses || [], allowed_transitions: user.allowed_transitions || {} }
+            : { username: '', password: '', role: 'operator', status: 'active', allowed_statuses: [], allowed_transitions: {} }
         );
     };
     const handleCloseUserModal = () => { setUserModal({ open: false, data: null }); setError(null); };
@@ -188,6 +188,7 @@ export default function UsersPage() {
                 role: formData.role,
                 is_active: formData.status === 'active',
                 allowed_statuses: formData.allowed_statuses || [],
+                allowed_transitions: formData.allowed_transitions || {},
             };
             if (formData.password?.trim()) payload.password = formData.password;
             if (userModal.data) await updateUser(userModal.data.id, payload);
@@ -673,31 +674,39 @@ export default function UsersPage() {
                                             <option value="inactive" className="bg-slate-900">Ғайрифаъол</option>
                                         </select>
                                     </div>
-                                    {/* Allowed statuses — only for non-superuser, non-viewer roles */}
+                                    {/* Per-user transition matrix — only for non-superuser, non-viewer roles */}
                                     {formData.role !== 'superuser' && formData.role !== 'viewer' && (
                                         <div>
-                                            <label className="block text-xs font-medium text-slate-400 uppercase mb-2">
-                                                Иҷозатдодашуда статусҳо
-                                                <span className="ml-1 text-slate-600 normal-case">(холӣ = рол тавассути нақши стандартӣ)</span>
+                                            <label className="block text-xs font-medium text-slate-400 uppercase mb-3">
+                                                Гузариши статусҳо
+                                                <span className="ml-1 text-slate-600 normal-case">(аз кадом → ба кадом)</span>
                                             </label>
-                                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                                                {ALL_STATUSES.map(s => {
-                                                    const checked = formData.allowed_statuses.includes(s.value);
-                                                    return (
-                                                        <label key={s.value} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all text-sm ${checked ? 'bg-blue-500/15 border-blue-500/40 text-blue-300' : 'bg-slate-800 border-white/10 text-slate-400 hover:border-white/20'}`}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={checked}
-                                                                onChange={() => {
-                                                                    const cur = formData.allowed_statuses || [];
-                                                                    setFormData({ ...formData, allowed_statuses: checked ? cur.filter(v => v !== s.value) : [...cur, s.value] });
-                                                                }}
-                                                                className="accent-blue-500 w-3.5 h-3.5"
-                                                            />
-                                                            {s.label}
-                                                        </label>
-                                                    );
-                                                })}
+                                            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                                                {ALL_STATUSES.map(from => (
+                                                    <div key={from.value} className="bg-slate-800/60 rounded-xl p-3 border border-white/5">
+                                                        <p className="text-xs font-semibold text-slate-300 mb-2">{from.label} →</p>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {ALL_STATUSES.filter(s => s.value !== from.value).map(to => {
+                                                                const checked = (formData.allowed_transitions?.[from.value] || []).includes(to.value);
+                                                                return (
+                                                                    <button
+                                                                        key={to.value}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const cur = formData.allowed_transitions || {};
+                                                                            const curList = cur[from.value] || [];
+                                                                            const updated = checked ? curList.filter(v => v !== to.value) : [...curList, to.value];
+                                                                            setFormData({ ...formData, allowed_transitions: { ...cur, [from.value]: updated } });
+                                                                        }}
+                                                                        className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all ${checked ? 'bg-blue-500/20 border-blue-500/50 text-blue-300' : 'bg-slate-700 border-white/10 text-slate-400 hover:border-white/20'}`}
+                                                                    >
+                                                                        {to.label}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     )}
