@@ -41,8 +41,23 @@ const ROLES = {
     admin: { label: 'Админ', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
     operator: { label: 'Оператор', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
     reviewer: { label: 'Кумита', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-    accountant: { label: 'Бухгалтер', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' }
+    accountant: { label: 'Бухгалтер', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+    viewer: { label: 'Танҳо хондан', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20' },
 };
+
+// Statuses a superuser can assign to a user
+const ALL_STATUSES = [
+    { value: 'new_message',   label: 'Паёми нав' },
+    { value: 'submitted',     label: 'Пуркардани анкета' },
+    { value: 'under_review',  label: 'Кумита' },
+    { value: 'to_accountant', label: 'Бухгалтерия' },
+    { value: 'rejected',      label: 'Рад' },
+    { value: 'approved',      label: 'Кумакшуда' },
+    { value: 'family_video',  label: 'Видеои' },
+    { value: 'help_later',    label: 'Баъдтар' },
+    { value: 'bank_card',     label: 'Ҳуҷҷат' },
+    { value: 'deleted',       label: 'Нест карда шуд' },
+];
 
 // --- Activity Constants ---
 const STATUS_LABELS = {
@@ -51,7 +66,7 @@ const STATUS_LABELS = {
     family_video: 'Видеои кандидат оила', help_later: 'Баъдтар кумак мекунем',
     bank_card: 'Рақами банкии карт', deleted: 'Нест карда шуд',
 };
-const ROLE_LABELS = { operator: 'Оператор', reviewer: 'Кумита', accountant: 'Бухгалтер', superuser: 'Супер Админ', admin: 'Админ' };
+const ROLE_LABELS = { operator: 'Оператор', reviewer: 'Кумита', accountant: 'Бухгалтер', superuser: 'Супер Админ', admin: 'Админ', viewer: 'Танҳо хондан' };
 const ROLE_COLORS = {
     operator:  { bg: 'bg-blue-500/10',    text: 'text-blue-400',    border: 'border-blue-500/20' },
     reviewer:  { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
@@ -92,7 +107,7 @@ export default function UsersPage() {
     const [search, setSearch] = useState('');
     const [error, setError] = useState(null);
     const [userModal, setUserModal] = useState({ open: false, data: null });
-    const [formData, setFormData] = useState({ username: '', password: '', role: 'operator', status: 'active' });
+    const [formData, setFormData] = useState({ username: '', password: '', role: 'operator', status: 'active', allowed_statuses: [] });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
@@ -157,8 +172,8 @@ export default function UsersPage() {
     const handleOpenUserModal = (user = null) => {
         setUserModal({ open: true, data: user });
         setFormData(user
-            ? { username: user.username, password: '', role: user.role, status: user.is_active ? 'active' : 'inactive' }
-            : { username: '', password: '', role: 'operator', status: 'active' }
+            ? { username: user.username, password: '', role: user.role, status: user.is_active ? 'active' : 'inactive', allowed_statuses: user.allowed_statuses || [] }
+            : { username: '', password: '', role: 'operator', status: 'active', allowed_statuses: [] }
         );
     };
     const handleCloseUserModal = () => { setUserModal({ open: false, data: null }); setError(null); };
@@ -168,7 +183,12 @@ export default function UsersPage() {
         if (!userModal.data && !formData.password?.trim()) { setError('Парол зарур аст.'); return; }
         setIsSubmitting(true); setError(null);
         try {
-            const payload = { username: formData.username, role: formData.role, is_active: formData.status === 'active' };
+            const payload = {
+                username: formData.username,
+                role: formData.role,
+                is_active: formData.status === 'active',
+                allowed_statuses: formData.allowed_statuses || [],
+            };
             if (formData.password?.trim()) payload.password = formData.password;
             if (userModal.data) await updateUser(userModal.data.id, payload);
             else await createUser(payload);
@@ -653,6 +673,34 @@ export default function UsersPage() {
                                             <option value="inactive" className="bg-slate-900">Ғайрифаъол</option>
                                         </select>
                                     </div>
+                                    {/* Allowed statuses — only for non-superuser, non-viewer roles */}
+                                    {formData.role !== 'superuser' && formData.role !== 'viewer' && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-400 uppercase mb-2">
+                                                Иҷозатдодашуда статусҳо
+                                                <span className="ml-1 text-slate-600 normal-case">(холӣ = рол тавассути нақши стандартӣ)</span>
+                                            </label>
+                                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                                                {ALL_STATUSES.map(s => {
+                                                    const checked = formData.allowed_statuses.includes(s.value);
+                                                    return (
+                                                        <label key={s.value} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all text-sm ${checked ? 'bg-blue-500/15 border-blue-500/40 text-blue-300' : 'bg-slate-800 border-white/10 text-slate-400 hover:border-white/20'}`}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={checked}
+                                                                onChange={() => {
+                                                                    const cur = formData.allowed_statuses || [];
+                                                                    setFormData({ ...formData, allowed_statuses: checked ? cur.filter(v => v !== s.value) : [...cur, s.value] });
+                                                                }}
+                                                                className="accent-blue-500 w-3.5 h-3.5"
+                                                            />
+                                                            {s.label}
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="p-6 bg-slate-950/30 flex gap-3">
                                     <button onClick={handleCloseUserModal} className="flex-1 px-4 py-3 border border-white/10 text-slate-300 font-medium rounded-xl hover:bg-white/5 transition-all">Бекор кардан</button>

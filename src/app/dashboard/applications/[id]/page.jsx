@@ -263,6 +263,12 @@ export default function ApplicationDetailPage() {
     const [amountModalOpen, setAmountModalOpen] = useState(false);
     const [amountForAccountant, setAmountForAccountant] = useState('');
     const [amountSubmitting, setAmountSubmitting] = useState(false);
+
+    // Reason modal (rejected / to_accountant)
+    const [reasonModalOpen, setReasonModalOpen] = useState(false);
+    const [reasonModalTarget, setReasonModalTarget] = useState(null); // 'rejected' | 'to_accountant'
+    const [reasonText, setReasonText] = useState('');
+    const [reasonSubmitting, setReasonSubmitting] = useState(false);
     const [selectedDocIndex, setSelectedDocIndex] = useState(null);
     const [previewRotationByDocId, setPreviewRotationByDocId] = useState({});
     const [deletingDocumentId, setDeletingDocumentId] = useState(null);
@@ -389,13 +395,45 @@ export default function ApplicationDetailPage() {
     };
 
     // When user selects to_accountant from dropdown: if currently under_review, show amount modal first
+    // Also intercept rejected / to_accountant to require a reason note
     const handleStatusSelect = (newStatus) => {
-        if (newStatus === 'to_accountant' && form?.status === 'under_review') {
-            setAmountForAccountant(form.aidmounts?.[0]?.amount?.toString() || '');
-            setAmountModalOpen(true);
+        // "rejected" or "to_accountant" → ask for reason first
+        if (newStatus === 'rejected' || newStatus === 'to_accountant') {
+            setReasonModalTarget(newStatus);
+            setReasonText('');
+            setReasonModalOpen(true);
             return;
         }
         handleStatusChange(newStatus);
+    };
+
+    // Submit reason then proceed with status change
+    const handleReasonSubmit = async () => {
+        if (!reasonText.trim()) {
+            alert('Лутфан сабабро нависед');
+            return;
+        }
+        setReasonSubmitting(true);
+        try {
+            // Save note first
+            await api.post('/form-notes/', { form: id, note: reasonText.trim() });
+
+            // If to_accountant and currently under_review → open amount modal next
+            if (reasonModalTarget === 'to_accountant' && form?.status === 'under_review') {
+                setReasonModalOpen(false);
+                setReasonText('');
+                setAmountForAccountant(form.aidmounts?.[0]?.amount?.toString() || '');
+                setAmountModalOpen(true);
+            } else {
+                await handleStatusChange(reasonModalTarget);
+                setReasonModalOpen(false);
+                setReasonText('');
+            }
+        } catch {
+            alert('Хатогӣ: сабаб сабт нашуд');
+        } finally {
+            setReasonSubmitting(false);
+        }
     };
 
     const handleConfirmAmountToAccountant = async () => {
@@ -823,7 +861,7 @@ export default function ApplicationDetailPage() {
                                             className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-blue-500/50 transition-all cursor-pointer shadow-md hover:shadow-xl"
                                             onClick={() => openDocPreview(idx)}
                                         >
-                                            {doc.id != null && (
+                                            {doc.id != null && ['superuser', 'accountant'].includes(user?.role) && (
                                                 <button
                                                     type="button"
                                                     title="Нест кардан"
@@ -841,12 +879,19 @@ export default function ApplicationDetailPage() {
                                                     )}
                                                 </button>
                                             )}
-                                            <img
-                                                src={doc.file_url}
-                                                alt={`Document ${idx + 1}`}
-                                                style={{ transform: `rotate(${thumbRotDeg}deg)` }}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            />
+                                            {doc.file_url?.toLowerCase().endsWith('.pdf') ? (
+                                                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 gap-2">
+                                                    <FileText className="w-10 h-10 text-red-400" />
+                                                    <span className="text-xs text-slate-400 font-medium">PDF</span>
+                                                </div>
+                                            ) : (
+                                                <img
+                                                    src={doc.file_url}
+                                                    alt={`Document ${idx + 1}`}
+                                                    style={{ transform: `rotate(${thumbRotDeg}deg)` }}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                />
+                                            )}
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center pointer-events-none">
                                                 <span className="text-white font-semibold text-xs px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
                                                     Намоиши пурра
@@ -927,7 +972,7 @@ export default function ApplicationDetailPage() {
                             </h2>
                             <div className="space-y-3">
                                 <label className="block">
-                                    <input type="file" multiple accept="image/*" className="hidden"
+                                    <input type="file" multiple accept="image/*,application/pdf" className="hidden"
                                         onChange={async (e) => {
                                             const files = e.target.files;
                                             if (!files || files.length === 0) return;
@@ -954,7 +999,7 @@ export default function ApplicationDetailPage() {
                                 </label>
 
                                 <label className="block">
-                                    <input type="file" multiple accept="image/*" className="hidden"
+                                    <input type="file" multiple accept="image/*,application/pdf" className="hidden"
                                         onChange={async (e) => {
                                             const files = e.target.files;
                                             if (!files || files.length === 0) return;
@@ -1119,12 +1164,20 @@ export default function ApplicationDetailPage() {
 
                     <div className="w-full max-w-5xl">
                         <div className="flex justify-center max-h-[78vh] overflow-hidden rounded-xl">
-                            <img
-                                src={previewDoc.file_url}
-                                alt={`Document ${selectedDocIndex + 1}`}
-                                style={{ transform: `rotate(${previewRotDeg}deg)` }}
-                                className="max-w-full max-h-[78vh] w-auto h-auto object-contain transition-transform duration-200"
-                            />
+                            {previewDoc.file_url?.toLowerCase().endsWith('.pdf') ? (
+                                <iframe
+                                    src={previewDoc.file_url}
+                                    title={`PDF ${selectedDocIndex + 1}`}
+                                    className="w-full h-[78vh] rounded-xl border-0 bg-white"
+                                />
+                            ) : (
+                                <img
+                                    src={previewDoc.file_url}
+                                    alt={`Document ${selectedDocIndex + 1}`}
+                                    style={{ transform: `rotate(${previewRotDeg}deg)` }}
+                                    className="max-w-full max-h-[78vh] w-auto h-auto object-contain transition-transform duration-200"
+                                />
+                            )}
                         </div>
                         <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-white">
                             <span className="text-sm text-slate-300">
@@ -1156,7 +1209,7 @@ export default function ApplicationDetailPage() {
                             >
                                 Open Original
                             </a>
-                            {previewDoc.id != null && (
+                            {previewDoc.id != null && ['superuser', 'accountant'].includes(user?.role) && (
                                 <button
                                     type="button"
                                     disabled={deletingDocumentId === previewDoc.id}
@@ -1232,6 +1285,60 @@ export default function ApplicationDetailPage() {
                             >
                                 {amountSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                                 Сабт кардан
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Reason (rejected / to_accountant) */}
+            {reasonModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-white/10 overflow-hidden">
+                        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-white">
+                                {reasonModalTarget === 'rejected' ? '❌ Сабаби рад кардан' : '📋 Сабаби ба бухгалтерия фиристодан'}
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => { setReasonModalOpen(false); setReasonText(''); }}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5 text-white" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-400">
+                                {reasonModalTarget === 'rejected'
+                                    ? 'Вазъият ба «Рад» иваз мешавад. Сабабро нависед:'
+                                    : 'Вазъият ба «Бухгалтерия» иваз мешавад. Сабабро нависед:'}
+                            </p>
+                            <textarea
+                                value={reasonText}
+                                onChange={(e) => setReasonText(e.target.value)}
+                                rows={4}
+                                placeholder="Сабабро дар ин ҷо нависед..."
+                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+                            />
+                        </div>
+                        <div className="p-6 pt-0 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => { setReasonModalOpen(false); setReasonText(''); }}
+                                className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-all"
+                            >
+                                Бекор кардан
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleReasonSubmit}
+                                disabled={reasonSubmitting || !reasonText.trim()}
+                                className={`flex-1 px-4 py-2.5 disabled:opacity-50 rounded-xl text-white font-semibold transition-all flex items-center justify-center gap-2 ${
+                                    reasonModalTarget === 'rejected' ? 'bg-red-600 hover:bg-red-500' : 'bg-teal-500 hover:bg-teal-600'
+                                }`}
+                            >
+                                {reasonSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                                Тасдиқ кардан
                             </button>
                         </div>
                     </div>
