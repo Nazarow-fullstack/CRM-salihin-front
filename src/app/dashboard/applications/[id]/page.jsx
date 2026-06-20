@@ -665,7 +665,10 @@ export default function ApplicationDetailPage() {
                                         Маблағи дархостшуда: {Number(form.approved_amount).toLocaleString()} сомонӣ
                                     </p>
                                 )}
-                                <p className="text-xs text-slate-500 mt-1">{reasonNote.user_username} · {new Date(reasonNote.created_at).toLocaleString()}</p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    <span className={`font-semibold ${isRejected ? 'text-red-400' : 'text-amber-400'}`}>{reasonNote.user_username}</span>
+                                    {' тарафӣ · '}{new Date(reasonNote.created_at).toLocaleString()}
+                                </p>
                             </div>
                         </div>
                     );
