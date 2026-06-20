@@ -830,6 +830,12 @@ export default function ApplicationDetailPage() {
                                         <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Вазъи молиявӣ</span>
                                         <p className="text-white font-semibold mt-2 whitespace-pre-wrap">{poll.financial_status}</p>
                                     </div>
+                                    {poll.hulosa_korresp && (
+                                        <div className="p-4 bg-amber-500/5 rounded-xl border border-amber-500/20 md:col-span-2">
+                                            <span className="text-xs text-amber-400 uppercase tracking-wider font-semibold">Хулосаи корреспондент</span>
+                                            <p className="text-white font-semibold mt-2 whitespace-pre-wrap">{poll.hulosa_korresp}</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {poll.family_workers?.length > 0 && (

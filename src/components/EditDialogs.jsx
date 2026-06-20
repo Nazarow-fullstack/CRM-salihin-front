@@ -21,6 +21,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
         monthly_income: poll?.monthly_income ?? '',
         yarim_reason: poll?.yarim_reason ?? '',
         place_of_residence: poll?.place_of_residence ?? '',
+        hulosa_korresp: poll?.hulosa_korresp ?? '',
     });
 
     const [familyWorkers, setFamilyWorkers] = useState(poll?.family_workers || []);
@@ -36,6 +37,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
             monthly_income: poll?.monthly_income ?? '',
             yarim_reason: poll?.yarim_reason ?? '',
             place_of_residence: poll?.place_of_residence ?? '',
+            hulosa_korresp: poll?.hulosa_korresp ?? '',
         });
         // Stable key: mevcut kayıtlar için String(id), yeni eklenecekler için Date.now()
         setFamilyWorkers(
@@ -61,6 +63,7 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
         monthly_income: data.monthly_income === '' ? null : Number(data.monthly_income),
         yarim_reason: data.yarim_reason || '',
         place_of_residence: data.place_of_residence || null,
+        hulosa_korresp: data.hulosa_korresp || '',
     });
 
     // Танҳо барои POST (сохтани нав) — майдонҳои холӣ/null филтр мешаванд
@@ -363,6 +366,20 @@ export function EditPollDialog({ isOpen, onClose, poll, formId, onSuccess }) {
                             onChange={handleChange}
                             rows={3}
                             className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">
+                            Хулосаи корреспондент
+                        </label>
+                        <textarea
+                            name="hulosa_korresp"
+                            value={formData.hulosa_korresp}
+                            onChange={handleChange}
+                            rows={4}
+                            placeholder="Кишӣ дар бораи аризадиҳанда хулоса менависад..."
+                            className="w-full bg-slate-800 border border-amber-500/20 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                         />
                     </div>
 
