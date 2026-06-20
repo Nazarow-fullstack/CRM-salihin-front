@@ -259,10 +259,8 @@ export default function ApplicationDetailPage() {
     const [isEditFormOpen, setIsEditFormOpen] = useState(false);
     const [isEditPollOpen, setIsEditPollOpen] = useState(false);
 
-    // To Accountant: ask amount when under_review → to_accountant
-    const [amountModalOpen, setAmountModalOpen] = useState(false);
+    // Amount for to_accountant modal (combined with reason modal)
     const [amountForAccountant, setAmountForAccountant] = useState('');
-    const [amountSubmitting, setAmountSubmitting] = useState(false);
 
     // Reason modal (rejected / to_accountant)
     const [reasonModalOpen, setReasonModalOpen] = useState(false);
@@ -407,56 +405,43 @@ export default function ApplicationDetailPage() {
         handleStatusChange(newStatus);
     };
 
-    // Submit reason then proceed with status change
+    // Submit reason (+ optional amount) then proceed with status change
     const handleReasonSubmit = async () => {
         if (!reasonText.trim()) {
             alert('Лутфан сабабро нависед');
             return;
         }
+        const needsAmount = reasonModalTarget === 'to_accountant' && form?.status === 'under_review';
+        if (needsAmount) {
+            const amount = parseFloat(amountForAccountant);
+            if (isNaN(amount) || amount <= 0) {
+                alert('Маблағи кӯмакро дохил кунед');
+                return;
+            }
+        }
         setReasonSubmitting(true);
         try {
-            // Save note first
             const noteType = reasonModalTarget === 'rejected' ? 'rejection_reason' : 'accountant_reason';
             await api.post('/form-notes/', { form: id, note: reasonText.trim(), note_type: noteType });
 
-            // If to_accountant and currently under_review → open amount modal next
-            if (reasonModalTarget === 'to_accountant' && form?.status === 'under_review') {
-                setReasonModalOpen(false);
-                setReasonText('');
-                setAmountForAccountant(form.aidmounts?.[0]?.amount?.toString() || '');
-                setAmountModalOpen(true);
+            if (needsAmount) {
+                const amount = parseFloat(amountForAccountant);
+                await api.patch(`/forms/${id}/`, {
+                    status: 'to_accountant',
+                    approved_amount: amount,
+                    aidmounts: [{ amount }]
+                });
+                fetchData();
             } else {
                 await handleStatusChange(reasonModalTarget);
-                setReasonModalOpen(false);
-                setReasonText('');
             }
+            setReasonModalOpen(false);
+            setReasonText('');
+            setAmountForAccountant('');
         } catch {
-            alert('Хатогӣ: сабаб сабт нашуд');
+            alert('Хатогӣ: маълумот сабт нашуд');
         } finally {
             setReasonSubmitting(false);
-        }
-    };
-
-    const handleConfirmAmountToAccountant = async () => {
-        const amount = parseFloat(amountForAccountant);
-        if (!amountModalOpen || isNaN(amount) || amount <= 0) {
-            alert('Маблағи кӯмакро дохил кунед');
-            return;
-        }
-        setAmountSubmitting(true);
-        try {
-            await api.patch(`/forms/${id}/`, {
-                status: 'to_accountant',
-                approved_amount: amount,
-                aidmounts: [{ amount }]
-            });
-            setAmountModalOpen(false);
-            setAmountForAccountant('');
-            fetchData();
-        } catch (err) {
-            alert('Хатогӣ: вазъият ва маблағ сабт нашуд');
-        } finally {
-            setAmountSubmitting(false);
         }
     };
 
@@ -670,11 +655,16 @@ export default function ApplicationDetailPage() {
                     return (
                         <div className={`flex items-start gap-3 px-5 py-4 rounded-2xl border mb-2 ${isRejected ? 'bg-red-500/10 border-red-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
                             <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isRejected ? 'text-red-400' : 'text-amber-400'}`} />
-                            <div>
+                            <div className="flex-1">
                                 <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isRejected ? 'text-red-400' : 'text-amber-400'}`}>
                                     {isRejected ? 'Сабаби рад кардан' : 'Сабаби ба бухгалтерия фиристодан'}
                                 </p>
                                 <p className="text-sm text-white">{reasonNote.note}</p>
+                                {!isRejected && form?.approved_amount && (
+                                    <p className="text-sm font-semibold text-teal-300 mt-1">
+                                        Маблағи дархостшуда: {Number(form.approved_amount).toLocaleString()} сомонӣ
+                                    </p>
+                                )}
                                 <p className="text-xs text-slate-500 mt-1">{reasonNote.user_username} · {new Date(reasonNote.created_at).toLocaleString()}</p>
                             </div>
                         </div>
@@ -1268,58 +1258,7 @@ export default function ApplicationDetailPage() {
                 );
             })()}
 
-            {/* Modal: Yardım miktarı (under_review → to_accountant) */}
-            {amountModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-white/10 overflow-hidden">
-                        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-white">Маблағи кӯмак</h3>
-                            <button
-                                type="button"
-                                onClick={() => { setAmountModalOpen(false); setAmountForAccountant(''); }}
-                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                            >
-                                <X className="w-5 h-5 text-white" />
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <p className="text-sm text-slate-400">Вазъият ба «Бухгалтерия» иваз мешавад. Маблағи кӯмакро (сомонӣ) дохил кунед:</p>
-                            <div>
-                                <label className="block text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Маблағ (сомонӣ)</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={amountForAccountant}
-                                    onChange={(e) => setAmountForAccountant(e.target.value)}
-                                    placeholder="0"
-                                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                />
-                            </div>
-                        </div>
-                        <div className="p-6 pt-0 flex gap-3">
-                            <button
-                                type="button"
-                                onClick={() => { setAmountModalOpen(false); setAmountForAccountant(''); }}
-                                className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-all"
-                            >
-                                Бекор кардан
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleConfirmAmountToAccountant}
-                                disabled={amountSubmitting || !amountForAccountant.trim()}
-                                className="flex-1 px-4 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 rounded-xl text-white font-semibold transition-all flex items-center justify-center gap-2"
-                            >
-                                {amountSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                                Сабт кардан
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Modal: Reason (rejected / to_accountant) */}
+            {/* Modal: Reason (+ optional amount for under_review → to_accountant) */}
             {reasonModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-white/10 overflow-hidden">
@@ -1329,30 +1268,42 @@ export default function ApplicationDetailPage() {
                             </h3>
                             <button
                                 type="button"
-                                onClick={() => { setReasonModalOpen(false); setReasonText(''); }}
+                                onClick={() => { setReasonModalOpen(false); setReasonText(''); setAmountForAccountant(''); }}
                                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                             >
                                 <X className="w-5 h-5 text-white" />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <p className="text-sm text-slate-400">
-                                {reasonModalTarget === 'rejected'
-                                    ? 'Вазъият ба «Рад» иваз мешавад. Сабабро нависед:'
-                                    : 'Вазъият ба «Бухгалтерия» иваз мешавад. Сабабро нависед:'}
-                            </p>
-                            <textarea
-                                value={reasonText}
-                                onChange={(e) => setReasonText(e.target.value)}
-                                rows={4}
-                                placeholder="Сабабро дар ин ҷо нависед..."
-                                className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
-                            />
+                            <div>
+                                <label className="block text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Сабаб</label>
+                                <textarea
+                                    value={reasonText}
+                                    onChange={(e) => setReasonText(e.target.value)}
+                                    rows={3}
+                                    placeholder="Сабабро дар ин ҷо нависед..."
+                                    className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+                                />
+                            </div>
+                            {reasonModalTarget === 'to_accountant' && form?.status === 'under_review' && (
+                                <div>
+                                    <label className="block text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Маблағи дархостшуда (сомонӣ)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={amountForAccountant}
+                                        onChange={(e) => setAmountForAccountant(e.target.value)}
+                                        placeholder="0"
+                                        className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50"
+                                    />
+                                </div>
+                            )}
                         </div>
                         <div className="p-6 pt-0 flex gap-3">
                             <button
                                 type="button"
-                                onClick={() => { setReasonModalOpen(false); setReasonText(''); }}
+                                onClick={() => { setReasonModalOpen(false); setReasonText(''); setAmountForAccountant(''); }}
                                 className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-all"
                             >
                                 Бекор кардан
