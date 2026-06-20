@@ -490,8 +490,14 @@ export default function ApplicationDetailPage() {
 
     const allowedStatuses = useMemo(() => {
         if (!user || !form) return [];
-        const role = user.role || 'superuser';
-        return STATUS_TRANSITIONS[role]?.[form.status] || [];
+        if (user.role === 'superuser') return STATUS_TRANSITIONS['superuser']?.[form.status] || [];
+        // Use per-user allowed_transitions if set
+        const transitions = user.allowed_transitions || {};
+        if (Object.keys(transitions).length > 0) {
+            return transitions[form.status] || [];
+        }
+        // Fallback to role defaults
+        return STATUS_TRANSITIONS[user.role]?.[form.status] || [];
     }, [user, form]);
 
     const formHistory = useMemo(() => {
