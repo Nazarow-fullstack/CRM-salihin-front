@@ -71,13 +71,19 @@ function formMatchesFilters(item, { search, statusFilter, regionFilter, purposeF
         item.last_name?.toLowerCase().includes(searchLower) ||
         item.father_name?.toLowerCase().includes(searchLower);
     const phoneMatch = item.phone_number?.includes(searchLower);
+    // Дархостҳо: аъзои оила (family_workers.name) ва соҳиби рақами телефон (family_phone_numbers.name_of_person)
+    // низ бояд ҷустуҷӯшаванд — ин фильтр бо backend `search_fields`-и FormViewSet мувофиқ аст.
+    const familyMemberMatch = (item.polls || []).some((p) =>
+        (p.family_workers || []).some((w) => w.name?.toLowerCase().includes(searchLower)) ||
+        (p.family_phone_numbers || []).some((ph) => ph.name_of_person?.toLowerCase().includes(searchLower))
+    );
     const itemStatus = getFormListItemStatusKey(item);
     const wantStatus = String(statusFilter ?? '').trim().toLowerCase();
     const statusMatch = wantStatus === 'all' || itemStatus === wantStatus;
     const regionMatch = regionFilter === 'all' || item.address_region === regionFilter;
     const purposeMatch = purposeFilter === 'all' || item.application_purpose === purposeFilter;
     const yarimMatch = yarimReasonFilter === 'all' || item.polls?.[0]?.yarim_reason === yarimReasonFilter;
-    return (nameMatch || phoneMatch) && statusMatch && regionMatch && purposeMatch && yarimMatch;
+    return (nameMatch || phoneMatch || (searchLower && familyMemberMatch)) && statusMatch && regionMatch && purposeMatch && yarimMatch;
 }
 
 export default function ApplicationsPage() {
