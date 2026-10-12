@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getCachedData, setCachedData, clearCache } from '../utils/apiCache';
 
-const API_URL = 'https://khatbar.tj/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://khatbar.tj/api';
 
 const api = axios.create({
     baseURL: API_URL,

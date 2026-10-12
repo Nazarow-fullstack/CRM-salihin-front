@@ -1,7 +1,7 @@
 import axios from "axios";
 import useAuthStore from "@/store/useAuthStore";
 
-const BASE_URL = "https://khatbar.tj/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://khatbar.tj/api";
 
 const api = axios.create({
     baseURL: BASE_URL,
